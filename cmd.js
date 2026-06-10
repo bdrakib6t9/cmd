@@ -27,8 +27,8 @@ function isURL(str) {
 module.exports = {
 	config: {
 		name: "cmd",
-		version: "1.18",
-		author: "NTKhang & Rakib",
+		version: "1.19",
+		author: "NTKhang & Edit",
 		countDown: 5,
 		role: 2,
 		description: {
@@ -168,10 +168,18 @@ module.exports = {
 				for (const file of allFiles) {
 					try {
 						const fileName = file.split(".")[0];
+						const checkCmd = require(path.join(__dirname, file));
+						if (!checkCmd || !checkCmd.config || !checkCmd.config.name) {
+							delete require.cache[require.resolve(path.join(__dirname, file))];
+							continue;
+						}
+						
 						unloadScripts("cmds", fileName, configCommands, getLang);
 						countUnloaded++;
 					} catch (e) {
-						// Ignore errors for individual files if any
+						try {
+							delete require.cache[require.resolve(path.join(__dirname, file))];
+						} catch(err){}
 					}
 				}
 				return message.reply(getLang("unloadAllSuccess", countUnloaded, this.config.name));
@@ -359,7 +367,7 @@ function loadScripts(folder, fileName, log, configCommands, api, threadModel, us
 			if (GoatBot[setMap].get(oldCommandName)?.location != pathCommand)
 				throw new Error(`${commandType} name "${oldCommandName}" is already exist in command "${removeHomeDir(GoatBot[setMap].get(oldCommandName)?.location || "")}"`);
 		}
-		if (oldCommand.config.aliases) {
+		if (oldCommand.config && oldCommand.config.aliases) {
 			let oldAliases = oldCommand.config.aliases;
 			if (typeof oldAliases == "string")
 				oldAliases = [oldAliases];
@@ -502,7 +510,7 @@ function unloadScripts(folder, fileName, configCommands, getLang) {
 	const indexOnAnyEvent = allOnAnyEvent.findIndex(item => item == commandName);
 	if (indexOnAnyEvent != -1)
 		allOnAnyEvent.splice(indexOnAnyEvent, 1);
-	if (command.config.aliases) {
+	if (command.config && command.config.aliases) {
 		let aliases = command.config?.aliases || [];
 		if (typeof aliases == "string")
 			aliases = [aliases];
