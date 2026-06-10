@@ -101,6 +101,12 @@ if (!threadData || !threadData.userInfo) {
           type: "circle",
           pos: [{ x: 65, y: 104, size: 210 }, { x: 460, y: 104, size: 210 }]
         },
+ 	  			{
+          id: 12,
+          url: "https://drive.google.com/uc?export=download&id=1-Cp4-ztebMMv9qgb_Q1rLkROkyEvKMD7",
+          type: "circle",
+          pos: [{ x: 65, y: 104, size: 210 }, { x: 460, y: 104, size: 210 }]
+        },
 
         { id: 9, type: "dynamic" },
         { id: 10, type: "dynamic" },
