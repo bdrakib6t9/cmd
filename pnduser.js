@@ -2,8 +2,8 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 module.exports = {
   config: {
-    name: "adduser",
-    version: "3.0",
+    name: "pnduser",
+    version: "1.0",
     author: "Rakib",
     countDown: 5,
     role: 1,
@@ -18,16 +18,13 @@ module.exports = {
 
   onStart: async function ({ message, api, event, args }) {
     try {
-      // থ্রেডের ইনফরমেশন থেকে অ্যাপ্রুভাল কিউ (পেন্ডিং লিস্ট) নেওয়া হচ্ছে
       const info = await api.getThreadInfo(event.threadID);
       const queue = info.approvalQueue || [];
-
-      // যদি পেন্ডিং লিস্টে কেউ না থাকে
+      
       if (queue.length === 0) {
         return message.reply("❌ বর্তমানে গ্রুপের পেন্ডিং লিস্টে (Approval Queue) কোনো মেম্বার নেই।");
       }
 
-      // ১. শুধু 'adduser' দিলে লিস্ট দেখাবে
       if (args.length === 0) {
         let msg = `== [ পেন্ডিং মেম্বার লিস্ট ] ==\nTotal: ${queue.length} জন\n━━━━━━━━━━━━━━━━━━\n`;
         queue.forEach((user, index) => {
@@ -36,7 +33,6 @@ module.exports = {
         return message.reply(msg.slice(0, 4000));
       }
 
-      // ২. 'adduser addall' দিলে একে একে সব মেম্বার অটো অ্যাড হবে
       if (args[0].toLowerCase() === "addall") {
         message.reply(`🔄 পেন্ডিং লিস্টে থাকা ${queue.length} জনকে একে একে অ্যাড করা শুরু হচ্ছে... অনুগ্রহ করে অপেক্ষা করুন।`);
 
@@ -51,7 +47,7 @@ module.exports = {
           } catch (err) {
             failCount++;
           }
-          // ফেসবুক সিকিউরিটি এবং বটের ব্লকিং এড়াতে প্রতি আইডি অ্যাডের মাঝে ১ সেকেন্ড বিরতি
+          
           await sleep(1000); 
         }
 
