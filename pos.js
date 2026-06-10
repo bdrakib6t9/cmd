@@ -103,9 +103,9 @@ if (!threadData || !threadData.userInfo) {
         },
  	  			{
           id: 12,
-          url: "https://drive.google.com/uc?export=download&id=1-Cp4-ztebMMv9qgb_Q1rLkROkyEvKMD7",
+          url: "https://drive.google.com/uc?export=download&id=1WFqm4AXEAS54XmBTsJNNUjcsFw781PkC",
           type: "circle",
-          pos: [{ x: 65, y: 104, size: 210 }, { x: 460, y: 104, size: 210 }]
+          pos: [{ x: 93, y: 111, size: 190 }, { x: 434, y: 107, size: 190 }]
         },
 
         { id: 9, type: "dynamic" },
