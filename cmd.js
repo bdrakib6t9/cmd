@@ -27,7 +27,7 @@ function isURL(str) {
 module.exports = {
 	config: {
 		name: "cmd",
-		version: "1.19",
+		version: "1.20",
 		author: "NTKhang & Edit",
 		countDown: 5,
 		role: 2,
@@ -38,13 +38,13 @@ module.exports = {
 		category: "owner",
 		guide: {
 			vi: "   {pn} load <tên file lệnh>"
-				+ "\n   {pn} loadAll"
+				+ "\n   {pn} loadall: Load lại tất cả các lệnh trong thư mục"
 				+ "\n   {pn} unload <tên file lệnh>"
 				+ "\n   {pn} unload all: Unload tất cả các lệnh ngoại trừ lệnh này"
 				+ "\n   {pn} install <url> <tên file lệnh>"
 				+ "\n   {pn} install <tên file lệnh> <code>",
 			en: "   {pn} load <command file name>"
-				+ "\n   {pn} loadAll"
+				+ "\n   {pn} loadall: Load all command files in the directory"
 				+ "\n   {pn} unload <command file name>"
 				+ "\n   {pn} unload all: Unload all commands except this one"
 				+ "\n   {pn} install <url> <command file name>"
@@ -103,37 +103,24 @@ module.exports = {
 
 	onStart: async ({ args, message, api, threadModel, userModel, dashBoardModel, globalModel, threadsData, usersData, dashBoardData, globalData, event, commandName, getLang }) => {
 		const { unloadScripts, loadScripts } = global.utils;
+
+		// Handle cmd loadall OR cmd load all
 		if (
-			args[0] == "load"
-			&& args.length == 2
+			(args[0] || "").toLowerCase() == "loadall" || 
+			(args[0] == "load" && args[1] && args[1].toLowerCase() == "all")
 		) {
-			if (!args[1])
-				return message.reply(getLang("missingFileName"));
-			const infoLoad = loadScripts("cmds", args[1], log, configCommands, api, threadModel, userModel, dashBoardModel, globalModel, threadsData, usersData, dashBoardData, globalData, getLang);
-			if (infoLoad.status == "success")
-				message.reply(getLang("loaded", infoLoad.name));
-			else {
-				message.reply(
-					getLang("loadedError", infoLoad.name, infoLoad.error.name, infoLoad.error.message)
-					+ "\n" + infoLoad.error.stack
-				);
-				console.log(infoLoad.errorWithThoutRemoveHomeDir);
-			}
-		}
-		else if (
-			(args[0] || "").toLowerCase() == "loadall"
-			|| (args[0] == "load" && args.length > 2)
-		) {
-			const fileNeedToLoad = args[0].toLowerCase() == "loadall" ?
-				fs.readdirSync(__dirname)
-					.filter(file =>
-						file.endsWith(".js") &&
-						!file.match(/(eg)\.js$/g) &&
-						(process.env.NODE_ENV == "development" ? true : !file.match(/(dev)\.js$/g)) &&
-						!configCommands.commandUnload?.includes(file)
-					)
-					.map(item => item = item.split(".")[0]) :
-				args.slice(1);
+			// আনলোড লিস্ট ক্লিয়ার করে দেওয়া হচ্ছে যাতে সব ফাইল ফ্রেশভাবে লোড হয়
+			configCommands.commandUnload = [];
+			fs.writeFileSync(client.dirConfigCommands, JSON.stringify(configCommands, null, 2));
+
+			const fileNeedToLoad = fs.readdirSync(__dirname)
+				.filter(file =>
+					file.endsWith(".js") &&
+					!file.match(/(eg)\.js$/g) &&
+					(process.env.NODE_ENV == "development" ? true : !file.match(/(dev)\.js$/g))
+				)
+				.map(item => item.split(".")[0]);
+
 			const arraySucces = [];
 			const arrayFail = [];
 
@@ -153,7 +140,24 @@ module.exports = {
 				msg += "\n" + getLang("openConsoleToSeeError");
 			}
 
-			message.reply(msg);
+			return message.reply(msg);
+		}
+		else if (
+			args[0] == "load"
+			&& args.length == 2
+		) {
+			if (!args[1])
+				return message.reply(getLang("missingFileName"));
+			const infoLoad = loadScripts("cmds", args[1], log, configCommands, api, threadModel, userModel, dashBoardModel, globalModel, threadsData, usersData, dashBoardData, globalData, getLang);
+			if (infoLoad.status == "success")
+				message.reply(getLang("loaded", infoLoad.name));
+			else {
+				message.reply(
+					getLang("loadedError", infoLoad.name, infoLoad.error.name, infoLoad.error.message)
+					+ "\n" + infoLoad.error.stack
+				);
+				console.log(infoLoad.errorWithThoutRemoveHomeDir);
+			}
 		}
 		else if (args[0] == "unload") {
 			if (!args[1])
