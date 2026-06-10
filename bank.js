@@ -4,7 +4,7 @@ module.exports = {
   config: {
     name: "bank",
     aliases: ["vault"],
-    version: "5.2",
+    version: "5.3",
     author: "Rakib",
     role: 0,
     category: "economy"
@@ -44,21 +44,20 @@ module.exports = {
     let bank = BigInt(user.data?.bank || 0);
     let loan = BigInt(user.data?.loan || 0);
 
+    const LOAN_LIMIT = 10_000_000n; // ১০ মিলিয়ন লিমিট উপরে নিয়ে আসা হয়েছে
+
     // ===== SAFE SAVE (রিসেট প্রবলেম ফিক্সড) =====
     const save = async () => {
       await usersData.set(uid, {
-        ...user, // ইউজারের আগের নাম বা অন্যান্য মেইন ডাটা সুরক্ষিত রাখবে
+        ...user,
         money: wallet.toString(),
         data: {
-          ...(user.data || {}), // ক্র্যাশ গেমের ডাটা ও অন্যান্য আগের ডাটা সুরক্ষিত রাখবে
+          ...(user.data || {}), // ক্র্যাশ ফাইলের ডাটা সুরক্ষিত থাকবে
           bank: bank.toString(),
           loan: loan.toString()
         }
       });
     };
-
-    const LOAN_LIMIT = 10_000_000n; // 10M limit
-    const WALLET_LIMIT = 150n; // wallet cap
 
     // ===== SHOW STATUS =====
     if (!args[0]) {
