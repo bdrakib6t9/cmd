@@ -1,13 +1,13 @@
 const utils = require("../../utils.js");
-
-const EMOJIS = ["🍒", "🍋", "🍉", "⭐", "💎"];
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+const DICE = ["⚀","⚁","⚂","⚃","⚄","⚅"];
 
 module.exports = {
   config: {
-    name: "slot",
-    aliases: ["slots"],
-    version: "6.1",
+    name: "dice",
+    aliases: ["roll"],
+    version: "2.1",
     author: "Rakib",
     role: 0,
     category: "economy"
@@ -21,21 +21,21 @@ module.exports = {
 
     /* ===== DAILY RESET LOGIC (30 LIMIT) ===== */
     const today = new Date().toLocaleDateString("en-US", { timeZone: "Asia/Dhaka" }); // বাংলাদেশের সময় অনুযায়ী ডেট ট্র্যাকিং
-    let slotCount = 0;
+    let diceCount = 0;
 
     // যদি আজকের দিনটি আগে সেভ করা দিনের সাথে মিলে, তবে আগের কাউন্ট নিবে, নাহলে নতুন দিন হিসেবে ০ হয়ে যাবে
-    if (data.slotLog && data.slotLog.date === today) {
-      slotCount = Number(data.slotLog.count || 0);
+    if (data.diceLog && data.diceLog.date === today) {
+      diceCount = Number(data.diceLog.count || 0);
     }
 
-    if (slotCount >= 30) {
+    if (diceCount >= 30) {
       return message.reply("❌ আপনি আজকে আপনার সর্বোচ্চ ৩০ বার খেলার লিমিট শেষ করে ফেলেছেন! আগামীকাল আবার খেলতে পারবেন।");
     }
 
     /* ===== COOLDOWN ===== */
     const now = Date.now();
-    if (now - (data.lastSlotTime || 0) < 10_000)
-      return message.reply("⏳ Please wait before spinning again.");
+    if (now - (data.lastDiceTime || 0) < 8000)
+      return message.reply("⏳ Please wait before rolling again.");
 
     /* ===== LOAD BALANCES (SAFE) ===== */
     let wallet = utils.safeBigInt(user.money);
@@ -57,41 +57,34 @@ module.exports = {
       return message.reply("❌ You don't have enough balance.");
 
     // লিমিট ১ বাড়ানো হলো
-    slotCount += 1;
+    diceCount += 1;
 
-    /* ===== FINAL SYMBOLS (DECIDED FIRST) ===== */
-    const spin = () => EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
-    const A = spin();
-    const B = spin();
-    const C = spin();
+    /* ===== ROLL ===== */
+    const playerRoll = Math.floor(Math.random() * 6) + 1;
+    const houseRoll  = Math.floor(Math.random() * 6) + 1;
 
-    let multiplier = 0n;
-    let finalTitle = "💀 NO MATCH!";
+    let profit = 0n;
+    let title = "💀 YOU LOST!";
     let resultLine = "";
 
-    if (A === B && B === C) {
-      multiplier = 5n;
-      finalTitle = "💎 JACKPOT! 3 MATCH!";
+    if (playerRoll > houseRoll) {
+      profit = bet;
+      wallet += bet;
+      title = "🎉 YOU WON!";
+      resultLine = `💰 Win: +${utils.formatMoney(bet)}`;
     }
-    else if (A === B || B === C || A === C) {
-      multiplier = 2n;
-      finalTitle = "✨ NICE! 2 MATCH!";
-    }
-
-    /* ===== BALANCE UPDATE ===== */
-    let profit = -bet;
-
-    if (multiplier > 0n) {
-      profit = bet * multiplier;
-      wallet += profit;
-      resultLine = `💰 Win: +${utils.formatMoney(profit)}`;
+    else if (playerRoll === houseRoll) {
+      profit = 0n;
+      title = "😐 DRAW!";
+      resultLine = "➖ No win, no loss";
     }
     else {
+      profit = -bet;
       wallet -= bet;
       resultLine = `💸 Loss: -${utils.formatMoney(bet)}`;
     }
 
-    /* ===== AUTO BANK LIMIT (150cs SYSTEM) ===== */
+    /* ===== AUTO BANK LIMIT (150cs) ===== */
     const fixed = utils.applyWalletLimit(wallet, bank);
     wallet = fixed.wallet;
     bank   = fixed.bank;
@@ -103,13 +96,15 @@ module.exports = {
       data: {
         ...data,
         bank: bank.toString(),
-        lastSlotTime: now,
-        slotLog: {
+        lastDiceTime: now,
+        diceLog: {
           date: today,
-          count: slotCount
+          count: diceCount
         },
-        slotWin: (
-          utils.safeBigInt(data.slotWin) +
+        // stats
+        dicePlayed: (data.dicePlayed || 0) + 1,
+        diceWin: (
+          utils.safeBigInt(data.diceWin) +
           (profit > 0n ? profit : 0n)
         ).toString()
       }
@@ -117,23 +112,23 @@ module.exports = {
 
     /* ===== INITIAL MESSAGE ===== */
     const sent = await message.reply(
-      `🎰 ❓ | ❓ | ❓\n` +
-      `✨ The wheel is spinning...\n\n` +
+      `🎲 ⚀ vs ⚀\n` +
+      `✨ Rolling the dice...\n\n` +
       `👤 Player: ${name}\n` +
-      `📊 Today's Play: ${slotCount}/30\n` +
+      `📊 Today's Play: ${diceCount}/30\n` +
       `💵 Bet: ${utils.formatMoney(bet)}\n` +
       `💼 Wallet: ${utils.formatMoney(wallet)}\n` +
       `🏦 Bank: ${utils.formatMoney(bank)}`
     );
 
-    /* ===== EMOJI SPIN ANIMATION (≤ 4 edits) ===== */
+    /* ===== ANIMATION (MAX 4 EDITS) ===== */
     for (let i = 0; i < 3; i++) {
       await sleep(400);
       api.editMessage(
-        `🎰 ${spin()} | ${spin()} | ${spin()}\n` +
-        `✨ The wheel is spinning...\n\n` +
+        `🎲 ${DICE[Math.floor(Math.random()*6)]} vs ${DICE[Math.floor(Math.random()*6)]}\n` +
+        `✨ Rolling the dice...\n\n` +
         `👤 Player: ${name}\n` +
-        `📊 Today's Play: ${slotCount}/30\n` +
+        `📊 Today's Play: ${diceCount}/30\n` +
         `💵 Bet: ${utils.formatMoney(bet)}\n` +
         `💼 Wallet: ${utils.formatMoney(wallet)}\n` +
         `🏦 Bank: ${utils.formatMoney(bank)}`,
@@ -144,11 +139,11 @@ module.exports = {
     /* ===== FINAL RESULT ===== */
     await sleep(500);
     api.editMessage(
-      `🎰 ${A} | ${B} | ${C}\n` +
+      `🎲 ${DICE[playerRoll-1]} vs ${DICE[houseRoll-1]}\n` +
       `${resultLine}\n\n` +
-      `${finalTitle}\n\n` +
+      `${title}\n\n` +
       `👤 Player: ${name}\n` +
-      `📊 Today's Play: ${slotCount}/30\n` +
+      `📊 Today's Play: ${diceCount}/30\n` +
       `💵 Bet: ${utils.formatMoney(bet)}\n` +
       `💼 Wallet: ${utils.formatMoney(wallet)}\n` +
       `🏦 Bank: ${utils.formatMoney(bank)}`,
