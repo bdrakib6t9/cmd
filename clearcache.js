@@ -4,7 +4,7 @@ module.exports = {
 		aliases: ["cc", "cacheclear"],
 		version: "1.0",
 		author: "Rakib",
-		countDown: 5,
+		countDown: 120,
 		role: 0,
 		shortDescription: {
 			en: "Clear require cache"
