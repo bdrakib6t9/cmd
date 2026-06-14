@@ -4,7 +4,7 @@ const { commands, aliases } = global.GoatBot;
 module.exports = {
   config: {
     name: "help",
-    version: "2.5.0",
+    version: "2.6.0",
     author: "Ktkhang | modified HOON",
     countDown: 5,
     role: 0,
@@ -32,6 +32,7 @@ module.exports = {
       const guideBody = configCommand.guide?.en || "No guide available.";
       const usage = guideBody.replace(/{p}/g, prefix).replace(/{n}/g, configCommand.name);
 
+      // এখানে অ্যাডমিন রিমুভ করে Owner & Support যুক্ত করা হয়েছে
       const response = 
         `╭─────────────────────⭓\n` +
         `│  ❀ 𝗖𝗢𝗠𝗠𝗔𝗡𝗗 𝗗𝗘𝗧𝗔𝗜𝗟𝗦 ❀\n` +
@@ -42,6 +43,9 @@ module.exports = {
         `│ 📘 𝐆𝐮𝐢𝐝𝐞: ${usage}\n` +
         `│ 🛡️ 𝐏𝐞𝐫𝐦𝐢𝐬𝐬𝐢𝐨𝐧: ${roleText}\n` +
         `│ ⏳ 𝐂𝐨𝐨𝐥𝐝𝐨𝐰𝐧: ${configCommand.countDown || 0}s\n` +
+        `├─────────────────────⭗\n` +
+        `│ 🛠️ 𝐎𝐰𝐧𝐞𝐫 & 𝐒𝐮𝐩𝐩𝐨𝐫𝐭: HOON\n` +
+        `│ 🌐 fb.com/profile.php?id=61581351693349\n` +
         `╰─────────────────────⭓`;
 
       return message.reply(response);
@@ -53,20 +57,17 @@ module.exports = {
 
     const helpMsg = await message.reply(msg);
 
-    // Reply tracking এর জন্য ডেটা সেভ রাখা
     global.GoatBot.onReply.set(helpMsg.messageID, {
       commandName: this.config.name,
       messageID: helpMsg.messageID,
       role: role
     });
 
-    // ৮০ সেকেন্ড পর মেসেজ আনসেন্ড করার জন্য
     setTimeout(() => {
       message.unsend(helpMsg.messageID);
     }, 80000);
   },
 
-  // রিপ্লাই দিয়ে পেজ চেঞ্জ করার হ্যান্ডলার
   onReply: async function ({ message, event, Reply }) {
     const { body, threadID } = event;
     const prefix = getPrefix(threadID);
@@ -74,7 +75,6 @@ module.exports = {
     if (!body || isNaN(body)) return;
     const pageInput = parseInt(body);
 
-    // আগের মেসেজ আনসেন্ড করা
     message.unsend(Reply.messageID);
 
     const { msg } = generateHelpMenu(prefix, Reply.role, pageInput);
@@ -88,7 +88,6 @@ module.exports = {
   }
 };
 
-// ক্যাটাগরি ভিত্তিক ইউনিক ডিজাইন জেনারেট করার ফাংশน
 function generateHelpMenu(prefix, role, pageInput) {
   const categories = {};
   
@@ -100,25 +99,23 @@ function generateHelpMenu(prefix, role, pageInput) {
   }
 
   const categoryKeys = Object.keys(categories).sort();
-  const itemsPerPage = 5; // প্রতি পেজে ৫টি করে ক্যাটাগরি দেখাবে (কমান্ড বেশি দেখানোর জন্য)
+  const itemsPerPage = 5; 
   const totalPage = Math.ceil(categoryKeys.length / itemsPerPage);
   
   let currentPage = pageInput;
   if (currentPage < 1) currentPage = 1;
   if (currentPage > totalPage) currentPage = totalPage;
 
-  let msg = `╭─────────────────────⭓\n│❀ 𝗧𝗘𝗦𝗦𝗔 𝗦𝗬𝗦𝗧𝗘𝗠 𝗛𝗘𝗟𝗣 ❀   \n╰─────────────────────⭓\n`;
+  let msg = `╭─────────────────────⭓\n│❀ 𝗧𝗘𝗦𝗦𝗔 𝐁𝐎𝐓 𝗦𝗬𝗦𝗧𝗘𝗠 𝗛𝗘𝗟𝗣 ❀   \n╰─────────────────────⭓\n`;
 
   const startIdx = (currentPage - 1) * itemsPerPage;
   const endIdx = startIdx + itemsPerPage;
   const pageCategories = categoryKeys.slice(startIdx, endIdx);
 
-  // প্রিমিয়াম ডিজাইন উইথ ❀ ইমোজি
   pageCategories.forEach((category) => {
     msg += `\n╭─✦ [ ${category.toUpperCase()} ]\n│\n`;
     const sortedCmds = categories[category].sort();
     
-    // প্রতি লাইনে ৩টি করে কমান্ড ❀ ইমোজি সহ সুন্দর স্পেসিং দিয়ে সাজানো
     for (let i = 0; i < sortedCmds.length; i += 3) {
       const chunk = sortedCmds.slice(i, i + 3).map(cmd => `❀ ${cmd}`);
       msg += `│  ${chunk.join("     ")}\n`;
