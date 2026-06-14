@@ -1,0 +1,18 @@
+[
+  { "id": 1, "name": "Chat 1 Message", "desc": "Send 1 msg in Baby World Group", "target": 1, "reward": 10000, "type": "chat" },
+  { "id": 2, "name": "Chat 100 Message", "desc": "Send 100 msg in Baby World Group", "target": 100, "reward": 2000000, "type": "chat" },
+  { "id": 3, "name": "Quiz Game", "desc": "Play 15 Quiz Games", "target": 15, "reward": 1000000, "type": "quiz" },
+  { "id": 4, "name": "Flag Game", "desc": "Play 15 Flag Games", "target": 15, "reward": 1000000, "type": "flag" },
+  { "id": 5, "name": "Slot Game", "desc": "Play 20 Slot Games", "target": 20, "reward": 1000000, "type": "slot" },
+  { "id": 6, "name": "Chat 200 Message", "desc": "Send 200 msg in Baby World Group", "target": 200, "reward": "1D VIP", "type": "chat" },
+  { "id": 7, "name": "Cartoon Quiz", "desc": "Play 15 Cartoon Games", "target": 15, "reward": 1000000, "type": "cartoon_quiz" },
+  { "id": 8, "name": "Freefire Quiz", "desc": "Play 10 Free Fire Quiz", "target": 10, "reward": 1000000, "type": "ff_quiz" },
+  { "id": 9, "name": "Aniqiz", "desc": "Play 15 Anime Quiz", "target": 15, "reward": 1000000, "type": "anime_quiz" },
+  { "id": 10, "name": "Math Game", "desc": "Play 10 Math Games", "target": 10, "reward": 1000000, "type": "math" },
+  { "id": 11, "name": "Actor Quiz", "desc": "Play 10 Actor Games", "target": 10, "reward": 1000000, "type": "actor_quiz" },
+  { "id": 12, "name": "Actress Quiz", "desc": "Play 10 Actress Games", "target": 10, "reward": 800000, "type": "actress_quiz" },
+  { "id": 13, "name": "Waifu Game", "desc": "Play 10 Waifu Quiz", "target": 10, "reward": 800000, "type": "waifu" },
+  { "id": 14, "name": "Animal Game", "desc": "Play 10 Animal Games", "target": 10, "reward": 800000, "type": "animal" },
+  { "id": 15, "name": "Command Use", "desc": "Use 30 Different Commands", "target": 30, "reward": 1000000, "type": "command" },
+  { "id": 16, "name": "Completionist", "desc": "Claim all 15 missions", "target": 15, "reward": 5000000, "type": "completionist" }
+]
