@@ -73,7 +73,7 @@ module.exports = {
           `👑 𝗢𝗪𝗡𝗘𝗥 𝗜𝗡𝗙𝗢\n\n` +
           `👤 𝗡𝗮𝗺𝗲 : 𝐇𝐎𝐎𝐍\n` +
           `🛠️ 𝗥𝗼𝗹𝗲 : Supporter & Owner\n` +
-          `🌐 𝗣𝗿𝗼ජ𝗲𝗰𝘁 : TESSA BOT\n` +
+          `🌐 𝗣𝗿𝗼𝗷𝗲𝗰𝘁 : TESSA BOT\n` +
           `📩 𝗦𝘂𝗽𝗽𝗼𝗿𝘁 : fb.com/profile.php?id=61581351693349\n\n` +
           `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
           `📚 𝗤𝗨𝗜𝗖𝗞 𝗦𝗧𝗔𝗥𝗧\n\n` +
@@ -235,7 +235,7 @@ module.exports = {
 
       if (!list.length)
         return api.sendMessage(
-          "✨ 𝗡𝗼 𝗣𝗲𝗻𝗱𝗶ﻨ𝗴 𝗚𝗿𝗼𝘂𝗽𝘀: Clear! No groups are waiting for approval.",
+          "✨ 𝗡𝗼 𝗣𝗲𝗻𝗱𝗶𝗻𝗴 𝗚𝗿𝗼𝘂𝗽𝘀: Clear! No groups are waiting for approval.",
           threadID,
           messageID
         );
