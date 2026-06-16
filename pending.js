@@ -41,6 +41,17 @@ module.exports = {
           );
         } catch (e) {}
 
+        // বটের নিকনেম সেট করা হচ্ছে গ্রুপে
+        try {
+          await api.changeNickname(
+            "❀❀❀☞ 𝐓𝐡𝐞 𝐑𝐨𝐛𝐨𝐭 𝐎𝐟 𝐓𝐞𝐬𝐬𝐚 𝐁𝐛𝐳 ☜❀❀❀",
+            targetThread.threadID,
+            api.getCurrentUserID()
+          );
+        } catch (nicknameError) {
+          console.log("Failed to change bot nickname:", nicknameError);
+        }
+
         // সিস্টেম থেকে বটের নিজস্ব প্রিফিক্স গেট করা হচ্ছে
         const botPrefix = global.GoatBot?.config?.prefix || "Non-Prefix / Prefixed";
 
@@ -62,7 +73,7 @@ module.exports = {
           `👑 𝗢𝗪𝗡𝗘𝗥 𝗜𝗡𝗙𝗢\n\n` +
           `👤 𝗡𝗮𝗺𝗲 : 𝐇𝐎𝐎𝐍\n` +
           `🛠️ 𝗥𝗼𝗹𝗲 : Supporter & Owner\n` +
-          `🌐 𝗣𝗿𝗼𝗷𝗲𝗰𝘁 : TESSA BOT\n` +
+          `🌐 𝗣𝗿𝗼ජ𝗲𝗰𝘁 : TESSA BOT\n` +
           `📩 𝗦𝘂𝗽𝗽𝗼𝗿𝘁 : fb.com/profile.php?id=61581351693349\n\n` +
           `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
           `📚 𝗤𝗨𝗜𝗖𝗞 𝗦𝗧𝗔𝗥𝗧\n\n` +
@@ -119,7 +130,7 @@ module.exports = {
         }
 
         return api.sendMessage(
-          "✅ 𝗦𝘂𝗰𝗰𝗲𝘀𝘀: Group has been approved and welcomed successfully.",
+          "✅ 𝗦𝘂𝗰𝗰𝗲𝘀𝘀: Group has been approved, nickname set, and welcomed successfully.",
           threadID,
           messageID
         );
@@ -224,7 +235,7 @@ module.exports = {
 
       if (!list.length)
         return api.sendMessage(
-          "✨ 𝗡𝗼 𝗣𝗲𝗻𝗱𝗶𝗻𝗴 𝗚𝗿𝗼𝘂𝗽𝘀: Clear! No groups are waiting for approval.",
+          "✨ 𝗡𝗼 𝗣𝗲𝗻𝗱𝗶ﻨ𝗴 𝗚𝗿𝗼𝘂𝗽𝘀: Clear! No groups are waiting for approval.",
           threadID,
           messageID
         );
