@@ -75,7 +75,7 @@ module.exports = {
           `𝗧𝗘𝗦𝗦𝗔 𝗕𝗢𝗧 to your community.\n\n` +
           `⚡ 𝐏𝐨𝐰𝐞𝐫𝐞𝐝 𝐛𝐲 𝐇𝐎𝐎𝐍\n` +
           `❀❀❀☞ 𝐓𝐡𝐞 𝐑𝐨𝐛𝐨𝐭 𝐎𝐟 𝐓𝐞𝐬𝐬𝐚 𝐁𝐛𝐳 ☜❀❀❀\n` +
-          `╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯`;
+          `╰━━━━━━━━━━━━━━━━━━━━━━━━╯`;
 
         await api.sendMessage(groupWelcomeMsg, targetThread.threadID);
 
@@ -101,7 +101,7 @@ module.exports = {
 
           const logMsg =
             `┏━━━━━━━━━━━━━━━━━━┓\n` +
-            `   🟢 𝗕𝗢𝗧 𝗔𝗗𝗗𝗘𝗗 𝗟𝗢𝗚 🟢\n` +
+            ` 𝗕𝗢𝗧 𝗔𝗗𝗗𝗘𝗗 𝗕𝗬 𝗣𝗘𝗡𝗗𝗜𝗡𝗚\n` +
             `┗━━━━━━━━━━━━━━━━━━┛\n\n` +
             `📌 𝗚𝗿𝗼𝘂𝗽: ${groupName}\n` +
             `🆔 𝗧𝗵𝗿𝗲𝗮𝗱 𝗜𝗗: \`${targetThread.threadID}\`\n` +
@@ -150,7 +150,7 @@ module.exports = {
 
           const logMsg =
             `┏━━━━━━━━━━━━━━━━━━┓\n` +
-            `   🔴 𝗕𝗢𝗧 𝗥𝗘𝗠𝗢𝗩𝗘𝗗 𝗟𝗢𝗚 🔴\n` +
+            `  𝗥𝗘𝗠𝗢𝗩𝗘𝗗 𝗕𝗬 𝗣𝗘𝗡𝗗𝗜𝗡𝗚\n` +
             `┗━━━━━━━━━━━━━━━━━━┛\n\n` +
             `📌 𝗚𝗿𝗼𝘂𝗽: ${groupName}\n` +
             `🆔 𝗧𝗵𝗿𝗲𝗮𝗱 𝗜𝗗: \`${targetThread.threadID}\`\n` +
@@ -231,7 +231,7 @@ module.exports = {
 
       let msg =
         `┏━━━━━━━━━━━━━━━━━━┓\n` +
-        `  📥 𝗣𝗘𝗡𝗗𝗜𝗡𝗚 𝗟𝗜𝗦𝗧 (${list.length})\n` +
+        `  ❀ 𝗣𝗘𝗡𝗗𝗜𝗡𝗚 𝗟𝗜𝗦𝗧 ❀ (${list.length})\n` +
         `┗━━━━━━━━━━━━━━━━━━┛\n\n`;
 
       let number = 1;
