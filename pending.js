@@ -41,6 +41,9 @@ module.exports = {
           );
         } catch (e) {}
 
+        // সিস্টেম থেকে বটের নিজস্ব প্রিফিক্স গেট করা হচ্ছে
+        const botPrefix = global.GoatBot?.config?.prefix || "Non-Prefix / Prefixed";
+
         const groupWelcomeMsg = 
           `╭━━━━━━━━━━━━━━━━━━━━━━━╮\n` +
           `┃ ❀ 𝗧𝗘𝗦𝗦𝗔 𝗕𝗢𝗧 𝗔𝗖𝗧𝗜𝗩𝗔𝗧𝗘𝗗 ❀ ┃\n` +
@@ -53,25 +56,25 @@ module.exports = {
           `🔹 𝗩𝗲𝗿𝘀𝗶𝗼𝗻 : 𝗩𝟯.𝟬\n` +
           `🔹 𝗦𝘁𝗮𝘁𝘂𝘀 : 🟢 Online\n` +
           `🔹 𝗧𝘆𝗽𝗲 : Multi Functional Assistant\n` +
-          `🔹 𝗣𝗿𝗲𝗳𝗶𝘅 : Non-Prefix / Prefixed\n` + // আপনার বটের প্রিফিক্স অনুযায়ী এটি পরিবর্তন করতে পারেন
+          `🔹 𝗣𝗿𝗲𝗳𝗶𝘅 : [ ${botPrefix} ]\n` + 
           `🔹 𝗟𝗮𝗻𝗴𝘂𝗮𝗴𝗲 : English / Bangla\n\n` +
           `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
           `👑 𝗢𝗪𝗡𝗘𝗥 𝗜𝗡𝗙𝗢\n\n` +
-          `👤 𝗡𝗮𝗺𝗲 : Rakib Hasan\n` +
-          `🛠️ 𝗥𝗼𝗹𝗲 : supporter & Owner\n` +
+          `👤 𝗡𝗮𝗺𝗲 : 𝐇𝐎𝐎𝐍\n` +
+          `🛠️ 𝗥𝗼𝗹𝗲 : Supporter & Owner\n` +
           `🌐 𝗣𝗿𝗼𝗷𝗲𝗰𝘁 : TESSA BOT\n` +
           `📩 𝗦𝘂𝗽𝗽𝗼𝗿𝘁 : Contact Owner For Help\n\n` +
           `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
           `📚 𝗤𝗨𝗜𝗖𝗞 𝗦𝗧𝗔𝗥𝗧\n\n` +
           `➜ help\n` +
-          `➜ findpair\n` +
+          `➜ menu\n` +
           `➜ allcmd\n\n` +
           `Use the commands above to explore all available features.\n\n` +
           `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
           `💖 Thank you for adding\n` +
           `𝗧𝗘𝗦𝗦𝗔 𝗕𝗢𝗧 to your community.\n\n` +
-          `⚡ 𝐏𝐨𝐰𝐞𝐫𝐞𝐝 𝐛𝐲 𝐇𝐎𝐎𝐍 \n` +
-          `❀❀❀☞ 𝐓𝐡𝐞 𝐑𝐨𝐛𝐨𝐭 𝐎𝐟 𝐓𝐞𝐬𝐬𝐚 𝐁𝐛𝐳 ☜❀❀❀\n` +
+          `⚡ Powered By Rakib Hasan\n` +
+          `🚀 TESSA BOT Official System\n` +
           `╰━━━━━━━━━━━━━━━━━━━━━━━╯`;
 
         await api.sendMessage(groupWelcomeMsg, targetThread.threadID);
@@ -98,7 +101,7 @@ module.exports = {
 
           const logMsg =
             `┏━━━━━━━━━━━━━━━━━━┓\n` +
-            `┃❀𝗔𝗗𝗗𝗘𝗗 𝗕𝗬 𝗣𝗘𝗡𝗗𝗜𝗡𝗚❀┃\n` +
+            `   🟢 𝗕𝗢𝗧 𝗔𝗗𝗗𝗘𝗗 𝗟𝗢𝗚 🟢\n` +
             `┗━━━━━━━━━━━━━━━━━━┛\n\n` +
             `📌 𝗚𝗿𝗼𝘂𝗽: ${groupName}\n` +
             `🆔 𝗧𝗵𝗿𝗲𝗮𝗱 𝗜𝗗: \`${targetThread.threadID}\`\n` +
@@ -147,13 +150,13 @@ module.exports = {
 
           const logMsg =
             `┏━━━━━━━━━━━━━━━━━━┓\n` +
-            `┃ 𝗥𝗘𝗠𝗢𝗩𝗘𝗗 𝗕𝗬 𝗣𝗘𝗡𝗗𝗜𝗡𝗚┃\n` +
+            `   🔴 𝗕𝗢𝗧 𝗥𝗘𝗠𝗢𝗩𝗘𝗗 𝗟𝗢𝗚 🔴\n` +
             `┗━━━━━━━━━━━━━━━━━━┛\n\n` +
             `📌 𝗚𝗿𝗼𝘂𝗽: ${groupName}\n` +
             `🆔 𝗧𝗵𝗿𝗲𝗮𝗱 𝗜𝗗: \`${targetThread.threadID}\`\n` +
             `🚫 𝗥𝗲𝗮𝘀𝗼𝗻: Rejected by Administrator\n\n` +
             `━━━━━━━━━━━━━━━━━━━━\n` +
-            `👤 👑 𝗥𝗲𝗺𝗼𝘃𝗲𝗱 𝗕𝘆: ${adminName}\n` +
+            `👤 𝗥𝗲𝗺𝗼𝘃𝗲𝗱 𝗕𝘆: ${adminName}\n` +
             `🆔 𝗨𝗜𝗗: \`${event.senderID}\``;
 
           for (const boxID of ownBox) {
@@ -187,7 +190,7 @@ module.exports = {
     } catch (err) {
       console.log(err);
       return api.sendMessage(
-        "❌ 🇪🇷🇷🇴🇷: An unexpected error occurred while processing the request.",
+        "❌ 𝗘𝗿𝗿𝗼𝗿: An unexpected error occurred while processing the request.",
         threadID,
         messageID
       );
@@ -228,7 +231,7 @@ module.exports = {
 
       let msg =
         `┏━━━━━━━━━━━━━━━━━━┓\n` +
-        `┃ ❀❀ 𝗣𝗘𝗡𝗗𝗜𝗡𝗚 𝗟𝗜𝗦𝗧 ❀❀┃(${list.length})\n` +
+        `  📥 𝗣𝗘𝗡𝗗𝗜𝗡𝗚 𝗟𝗜𝗦𝗧 (${list.length})\n` +
         `┗━━━━━━━━━━━━━━━━━━┛\n\n`;
 
       let number = 1;
