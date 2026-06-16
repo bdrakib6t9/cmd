@@ -63,19 +63,19 @@ module.exports = {
           `👤 𝗡𝗮𝗺𝗲 : 𝐇𝐎𝐎𝐍\n` +
           `🛠️ 𝗥𝗼𝗹𝗲 : Supporter & Owner\n` +
           `🌐 𝗣𝗿𝗼𝗷𝗲𝗰𝘁 : TESSA BOT\n` +
-          `📩 𝗦𝘂𝗽𝗽𝗼𝗿𝘁 : Contact Owner For Help\n\n` +
+          `📩 𝗦𝘂𝗽𝗽𝗼𝗿𝘁 : fb.com/profile.php?id=61581351693349\n\n` +
           `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
           `📚 𝗤𝗨𝗜𝗖𝗞 𝗦𝗧𝗔𝗥𝗧\n\n` +
           `➜ help\n` +
-          `➜ menu\n` +
+          `➜ adcall\n` +
           `➜ allcmd\n\n` +
           `Use the commands above to explore all available features.\n\n` +
           `━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
           `💖 Thank you for adding\n` +
           `𝗧𝗘𝗦𝗦𝗔 𝗕𝗢𝗧 to your community.\n\n` +
-          `⚡ Powered By Rakib Hasan\n` +
-          `🚀 TESSA BOT Official System\n` +
-          `╰━━━━━━━━━━━━━━━━━━━━━━━╯`;
+          `⚡ 𝐏𝐨𝐰𝐞𝐫𝐞𝐝 𝐛𝐲 𝐇𝐎𝐎𝐍\n` +
+          `❀❀❀☞ 𝐓𝐡𝐞 𝐑𝐨𝐛𝐨𝐭 𝐎𝐟 𝐓𝐞𝐬𝐬𝐚 𝐁𝐛𝐳 ☜❀❀❀\n` +
+          `╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯`;
 
         await api.sendMessage(groupWelcomeMsg, targetThread.threadID);
 
