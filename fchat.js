@@ -2,36 +2,8 @@ const fs = require("fs-extra");
 const path = require("path");
 const fetch = require("node-fetch");
 const { createCanvas, loadImage } = require("canvas");
+const { getAvatarUrl } = require("../../rakib/customApi/getAvatarUrl");
 
-const balancePath = __dirname + "/coinxbalance.json";
-if (!fs.existsSync(balancePath))
-  fs.writeFileSync(balancePath, JSON.stringify({}, null, 2));
-
-function getBalance(userID) {
-  const data = JSON.parse(fs.readFileSync(balancePath));
-  if (data[userID]?.balance != null) return data[userID].balance;
-  if (userID === "100078049308655") return 10000;
-  return 100;
-}
-
-function setBalance(userID, balance) {
-  const data = JSON.parse(fs.readFileSync(balancePath));
-  data[userID] = { balance };
-  fs.writeFileSync(balancePath, JSON.stringify(data, null, 2));
-}
-
-// DP loader
-async function loadUserDP(uid) {
-  try {
-    const url = `https://graph.facebook.com/${uid}/picture?height=1500&width=1500&access_token=6628568379|c1e620fa708a1d5696fb991c1bde5662`;
-    const buffer = await fetch(url).then(res => res.arrayBuffer());
-    return await loadImage(Buffer.from(buffer));
-  } catch (e) {
-    return await loadImage("https://i.postimg.cc/kgjgP6QX/messenger-dp.png");
-  }
-}
-
-// Bubble drawer
 function drawBubble(ctx, x, y, w, h, color, tailLeft = true) {
   const radius = 40;
   ctx.fillStyle = color;
@@ -68,54 +40,56 @@ module.exports = {
   config: {
     name: "fchat",
     aliases: ["fchat"],
-    version: "1.0",
+    version: "2.0",
     author: "Rakib",
     role: 0,
     countDown: 5,
-    shortDescription: { en: "Messenger FakeChat Dark Mode (Big Light Font)" },
+    shortDescription: { en: "Messenger FakeChat via Reply" },
     category: "fun",
-    guide: { en: "+fakechat @mention - msg1 - [msg2]" }
+    guide: { en: "Reply to a message with: +fakechat msg1 - [msg2]" }
   },
 
   onStart: async function ({ args, message, event, api }) {
-    if (args.length < 2)
-      return message.reply("Usage:\n+fakechat @mention - msg1 - msg2");
+    // চেক করা হচ্ছে ব্যবহারকারী কোনো মেসেজে রিপ্লাই করেছে কিনা
+    if (event.type !== "message_reply") {
+      return message.reply("❌ দয়া করে যার নামে ফেক চ্যাট বানাতে চান, তার যেকোনো একটি মেসেজে রিপ্লাই করে কমান্ডটি লিখুন।");
+    }
 
+    if (args.length === 0) {
+      return message.reply("ব্যবহারের নিয়ম:\n+fakechat প্রথম মেসেজ - দ্বিতীয় মেসেজ (ঐচ্ছিক)");
+    }
+
+    // ইনপুট টেক্সট প্রসেসিং
     const input = args.join(" ").split("-").map(a => a.trim());
-    let [target, text1, text2 = ""] = input;
+    let [text1, text2 = ""] = input;
 
-    let uid;
-    if (event.mentions && Object.keys(event.mentions).length > 0)
-      uid = Object.keys(event.mentions)[0];
-    else if (/^\d{6,}$/.test(target)) uid = target;
-    else return message.reply("❌ Invalid UID!");
-
+    // রিপ্লাই করা ব্যক্তির UID এবং নাম সংগ্রহ
+    const uid = event.messageReply.senderID;
     let name = "User";
     try {
       const info = await api.getUserInfo(uid);
       name = info[uid]?.name || "User";
     } catch {}
 
-    // Balance
-    const senderID = event.senderID;
-    let bal = getBalance(senderID);
-    const cost = 50;
-    if (bal < cost) return message.reply("❌ Not enough balance");
-    setBalance(senderID, bal - cost);
+    // কাস্টম API এর মাধ্যমে প্রোফাইল পিকচার লোড
+    let dp;
+    try {
+      const avatarUrl = await getAvatarUrl(uid);
+      dp = await loadImage(avatarUrl);
+    } catch (e) {
+      dp = await loadImage("https://i.postimg.cc/kgjgP6QX/messenger-dp.png");
+    }
 
-    // Load DP
-    const dp = await loadUserDP(uid);
-
-    // Canvas
+    // Canvas তৈরি
     const width = 1080, height = 1500;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext("2d");
 
-    // Dark background
+    // ডার্ক ব্যাকগ্রাউন্ড
     ctx.fillStyle = "#18191A";
     ctx.fillRect(0, 0, width, height);
 
-    // Draw DP
+    // প্রোফাইল পিকচার ড্র করা (Circle Crop)
     ctx.save();
     ctx.beginPath();
     ctx.arc(120, 180, 90, 0, Math.PI * 2);
@@ -123,21 +97,21 @@ module.exports = {
     ctx.drawImage(dp, 30, 90, 180, 180);
     ctx.restore();
 
-    // Name & time
+    // নাম এবং একটিভ স্ট্যাটাস
     ctx.fillStyle = "#fff";
-    ctx.font = "300 55px Sans-serif"; // light & bigger font
+    ctx.font = "300 55px Sans-serif";
     ctx.fillText(name, 250, 160);
     ctx.fillStyle = "#aaa";
-    ctx.font = "300 40px Sans-serif"; // light & smaller for status
+    ctx.font = "300 40px Sans-serif";
     ctx.fillText("Active now", 250, 210);
 
-    // Left bubble = Receiver (dark grey)
+    // বাম পাশের বাবল (যার মেসেজে রিপ্লাই করা হয়েছে - ধূসর রঙ)
     drawBubble(ctx, 50, 280, 700, 150, "#242526", true);
     ctx.fillStyle = "#fff";
     ctx.font = "300 55px Sans-serif";
     ctx.fillText(text1, 90, 370);
 
-    // Right bubble = Sender (blue)
+    // ডান পাশের বাবল (যে কমান্ড ব্যবহার করেছে - নীল রঙ)
     if (text2) {
       const bubbleX = width - 50 - 700;
       drawBubble(ctx, bubbleX, 480, 700, 150, "#0560FF", false);
@@ -146,11 +120,11 @@ module.exports = {
       ctx.fillText(text2, bubbleX + 40, 570);
     }
 
-    const imgPath = path.join(__dirname, "tmp", `fakechat_${senderID}.png`);
+    // ইমেজ সেভ এবং সেন্ড করা
+    const imgPath = path.join(__dirname, "tmp", `fakechat_${event.senderID}.png`);
     fs.ensureDirSync(path.dirname(imgPath));
     fs.writeFileSync(imgPath, canvas.toBuffer());
 
-    // Only send image
     message.reply({ attachment: fs.createReadStream(imgPath) }, () => fs.unlinkSync(imgPath));
   }
 };
