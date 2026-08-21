@@ -3,7 +3,8 @@ const { createCanvas, loadImage } = require("canvas");
 const fs = require("fs");
 const path = require("path");
 const { getAvatarUrl } = require("../../rakib/customApi/getAvatarUrl");
-                                                                module.exports = {
+
+module.exports = {
   config: {
     name: "pair",
     aliases: ["pr"],
@@ -17,7 +18,8 @@ const { getAvatarUrl } = require("../../rakib/customApi/getAvatarUrl");
 
       /* ================= USER ID HELPER ================= */
 
-      function getUserID(user) {                                        if (!user) return "";
+      function getUserID(user) {
+        if (!user) return "";
 
         return String(
           user.id ??
@@ -26,7 +28,8 @@ const { getAvatarUrl } = require("../../rakib/customApi/getAvatarUrl");
           user.uid ??
           user.user_id ??
           ""
-        );                                                            }
+        );
+      }
 
       /* ================= SENDER DATA ================= */
 
@@ -98,6 +101,81 @@ const { getAvatarUrl } = require("../../rakib/customApi/getAvatarUrl");
 
       /* ================= FIND MY DATA ================= */
 
+      function normalizeGender(gender) {
+        if (typeof gender === "number") {
+          if ([1, 3, 8].includes(gender)) return "FEMALE";
+          if ([2, 4, 9].includes(gender)) return "MALE";
+          return null;
+        }
+
+        if (typeof gender !== "string") {
+          return null;
+        }
+
+        const value = gender.trim().toUpperCase();
+
+        if (
+          [
+            "F",
+            "FEMALE",
+            "FEMALE_SINGULAR",
+            "FEMALE_SINGULAR_GUESS",
+            "FEMALE_PLURAL"
+          ].includes(value)
+        ) {
+          return "FEMALE";
+        }
+
+        if (
+          [
+            "M",
+            "MALE",
+            "MALE_SINGULAR",
+            "MALE_SINGULAR_GUESS",
+            "MALE_PLURAL"
+          ].includes(value)
+        ) {
+          return "MALE";
+        }
+
+        const number = Number(value);
+
+        if ([1, 3, 8].includes(number)) return "FEMALE";
+        if ([2, 4, 9].includes(number)) return "MALE";
+
+        return null;
+      }
+
+      /*
+       * Thread info may contain incomplete/old gender data.
+       * Use fresh getUserInfo() when gender is missing/unknown.
+       */
+      async function getFreshGender(userID, currentGender) {
+        const normalized = normalizeGender(currentGender);
+
+        if (normalized) {
+          return normalized;
+        }
+
+        try {
+          const info = await api.getUserInfo(String(userID));
+          const user = info?.[String(userID)];
+
+          return normalizeGender(
+            user?.gender ?? user?.sex
+          );
+        } catch (error) {
+          console.log(
+            `[PAIR] Failed to fetch gender for ${userID}:`,
+            error.message
+          );
+
+          return null;
+        }
+      }
+
+      /* ================= MY GENDER ================= */
+
       const myData = users.find(
         user => getUserID(user) === senderID
       );
@@ -109,36 +187,12 @@ const { getAvatarUrl } = require("../../rakib/customApi/getAvatarUrl");
         );
       }
 
-      /*
-       * Gender may come in different formats
-       */
-      let myGender = String(
-        myData.gender ??
-        myData.sex ??
-        ""
-      ).toUpperCase();
+      const myGender = await getFreshGender(
+        senderID,
+        myData.gender ?? myData.sex
+      );
 
-      /*
-       * Normalize gender values
-       */
-      if (
-        myGender === "M" ||
-        myGender === "MALE" ||
-        myGender === "2"
-      ) {
-        myGender = "MALE";
-      } else if (
-        myGender === "F" ||
-        myGender === "FEMALE" ||
-        myGender === "1"
-      ) {
-        myGender = "FEMALE";
-      }
-
-      if (
-        myGender !== "MALE" &&
-        myGender !== "FEMALE"
-      ) {
+      if (!myGender) {
         return api.sendMessage(
           "⚠️ Gender data not available for matching.",
           event.threadID
@@ -147,38 +201,31 @@ const { getAvatarUrl } = require("../../rakib/customApi/getAvatarUrl");
 
       /* ================= MATCH CANDIDATES ================= */
 
-      let matchCandidates = users.filter(user => {
+      let matchCandidates = [];
+
+      for (const user of users) {
         const userID = getUserID(user);
 
         if (!userID || userID === senderID) {
-          return false;
+          continue;
         }
 
-        let gender = String(
-          user.gender ??
-          user.sex ??
-          ""
-        ).toUpperCase();
+        const gender = await getFreshGender(
+          userID,
+          user.gender ?? user.sex
+        );
 
         if (
-          gender === "M" ||
-          gender === "MALE" ||
-          gender === "2"
-        ) {
-          gender = "MALE";
-        } else if (
-          gender === "F" ||
-          gender === "FEMALE" ||
-          gender === "1"
-        ) {
-          gender = "FEMALE";
-        }
-
-        return (
           (myGender === "MALE" && gender === "FEMALE") ||
           (myGender === "FEMALE" && gender === "MALE")
-        );
-      });
+        ) {
+          matchCandidates.push({
+            ...user,
+            id: userID,
+            gender
+          });
+        }
+      }
 
       if (!matchCandidates.length) {
         return api.sendMessage(
@@ -1385,8 +1432,7 @@ const { getAvatarUrl } = require("../../rakib/customApi/getAvatarUrl");
         err
       );
 
-      return api.sendMessage(
-        "❌ Error:\n" +
+      return api.sendMessage(                                           "❌ Error:\n" +
         err.message,
         event.threadID
       );
