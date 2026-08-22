@@ -3,6 +3,7 @@ const { findUid } = global.utils;
 const sleep = ms =>
         new Promise(resolve => setTimeout(resolve, ms));
 
+
 /*
  * ==========================================
  * RESOLVE UID
@@ -23,12 +24,15 @@ async function resolveUID(input) {
 
         for (let attempt = 1; attempt <= 10; attempt++) {
                 try {
-                        const uid = await findUid(input);
+                        const uid =
+                                await findUid(input);
 
                         if (uid)
                                 return String(uid);
+
                 } catch (error) {
-                        const name = error?.name;
+                        const name =
+                                error?.name;
 
                         if (
                                 (
@@ -45,21 +49,19 @@ async function resolveUID(input) {
                 }
         }
 
-        throw new Error("CANNOT_GET_UID");
+        throw new Error(
+                "CANNOT_GET_UID"
+        );
 }
 
 
 /*
  * ==========================================
- * GET GROUP STATE
- *
- * added  = actually inside group
- * pending = actually inside approval queue
- * failed = neither
+ * CHECK IF USER IS PENDING
  * ==========================================
  */
 
-async function getGroupState(
+async function isPending(
         api,
         threadID,
         uid
@@ -70,28 +72,6 @@ async function getGroupState(
                                 String(threadID)
                         );
 
-                /*
-                 * Check actual members
-                 */
-                if (
-                        Array.isArray(
-                                info?.participantIDs
-                        )
-                ) {
-                        const isMember =
-                                info.participantIDs.some(
-                                        id =>
-                                                String(id) ===
-                                                String(uid)
-                                );
-
-                        if (isMember)
-                                return "added";
-                }
-
-                /*
-                 * Check approval queue
-                 */
                 const queue =
                         Array.isArray(
                                 info?.approvalQueue
@@ -99,9 +79,9 @@ async function getGroupState(
                                 ? info.approvalQueue
                                 : [];
 
-                const isPending =
-                        queue.some(user => {
-                                const pendingUID =
+                return queue.some(
+                        user => {
+                                const id =
                                         user?.requesterID ??
                                         user?.requesterId ??
                                         user?.userID ??
@@ -110,65 +90,22 @@ async function getGroupState(
                                         user?.id;
 
                                 return (
-                                        pendingUID &&
-                                        String(
-                                                pendingUID
-                                        ) ===
+                                        id &&
+                                        String(id) ===
                                         String(uid)
                                 );
-                        });
-
-                if (isPending)
-                        return "pending";
-
-                return "failed";
-
-        } catch (error) {
-                console.error(
-                        `[ADDUSER] getGroupState ${uid}:`,
-                        error?.message || error
+                        }
                 );
 
-                return "unknown";
+        } catch (error) {
+                console.log(
+                        `[ADDUSER] Pending check ${uid}:`,
+                        error?.message ||
+                                error
+                );
+
+                return false;
         }
-}
-
-
-/*
- * ==========================================
- * VERIFY / WAIT FOR FACEBOOK UPDATE
- * ==========================================
- */
-
-async function checkFinalState({
-        api,
-        threadID,
-        uid
-}) {
-        /*
-         * Facebook may need some time to update
-         * participantIDs / approvalQueue.
-         */
-        for (let attempt = 1; attempt <= 5; attempt++) {
-                const state =
-                        await getGroupState(
-                                api,
-                                threadID,
-                                uid
-                        );
-
-                if (
-                        state === "added" ||
-                        state === "pending"
-                ) {
-                        return state;
-                }
-
-                if (attempt < 5)
-                        await sleep(1500);
-        }
-
-        return "failed";
 }
 
 
@@ -176,9 +113,7 @@ async function checkFinalState({
  * ==========================================
  * ADD USERS
  *
- * Shared by:
- * adduser
- * pnduser
+ * Shared by adduser + pnduser
  * ==========================================
  */
 
@@ -196,16 +131,25 @@ async function addUsers({
         const sentForApproval = [];
         const failed = [];
 
-        for (const rawUID of userIDs) {
+        for (
+                const rawUID
+                of userIDs
+        ) {
                 const uid =
-                        String(rawUID).trim();
+                        String(
+                                rawUID
+                        ).trim();
 
                 if (!uid)
                         continue;
 
+
                 /*
-                 * Never add bot itself
+                 * ======================================
+                 * BOT CHECK
+                 * ======================================
                  */
+
                 if (uid === botID) {
                         failed.push({
                                 uid,
@@ -216,34 +160,104 @@ async function addUsers({
                         continue;
                 }
 
+
                 /*
-                 * Check current state before add
+                 * ======================================
+                 * PRE-CHECK
+                 * ======================================
+                 *
+                 * Only one getThreadInfo.
+                 * No long verification loop.
                  */
-                let currentState =
-                        await getGroupState(
-                                api,
-                                threadID,
-                                uid
+
+                try {
+                        const info =
+                                await api.getThreadInfo(
+                                        String(
+                                                threadID
+                                        )
+                                );
+
+
+                        /*
+                         * Already member
+                         */
+
+                        if (
+                                Array.isArray(
+                                        info?.participantIDs
+                                ) &&
+                                info.participantIDs.some(
+                                        id =>
+                                                String(
+                                                        id
+                                                ) === uid
+                                )
+                        ) {
+                                failed.push({
+                                        uid,
+                                        reason:
+                                                "Already in group."
+                                });
+
+                                continue;
+                        }
+
+
+                        /*
+                         * Already pending
+                         */
+
+                        const queue =
+                                Array.isArray(
+                                        info?.approvalQueue
+                                )
+                                        ? info.approvalQueue
+                                        : [];
+
+                        const pending =
+                                queue.some(
+                                        user => {
+                                                const id =
+                                                        user?.requesterID ??
+                                                        user?.requesterId ??
+                                                        user?.userID ??
+                                                        user?.userId ??
+                                                        user?.uid ??
+                                                        user?.id;
+
+                                                return (
+                                                        id &&
+                                                        String(
+                                                                id
+                                                        ) === uid
+                                                );
+                                        }
+                                );
+
+                        if (pending) {
+                                sentForApproval.push(
+                                        uid
+                                );
+
+                                continue;
+                        }
+
+                } catch (error) {
+                        console.log(
+                                "[ADDUSER] Pre-check:",
+                                error?.message ||
+                                        error
                         );
-
-                if (currentState === "added") {
-                        failed.push({
-                                uid,
-                                reason:
-                                        "Already in group."
-                        });
-
-                        continue;
                 }
 
-                if (currentState === "pending") {
-                        sentForApproval.push(uid);
-                        continue;
-                }
 
                 /*
-                 * Actual add request
+                 * ======================================
+                 * ACTUAL ADD REQUEST
+                 * ======================================
                  */
+
                 try {
                         console.log(
                                 `[ADDUSER] Adding ${uid} -> ${threadID}`
@@ -251,43 +265,29 @@ async function addUsers({
 
                         await api.addUserToGroup(
                                 uid,
-                                threadID
+                                String(
+                                        threadID
+                                )
                         );
 
+
                         /*
-                         * IMPORTANT:
+                         * IMPORTANT
                          *
-                         * addUserToGroup() resolving does NOT
-                         * automatically mean the user joined.
+                         * Do NOT wait for participantIDs.
                          *
-                         * Check Facebook's actual state.
+                         * wonfca resolving the add request
+                         * means the request was accepted by
+                         * the API/Facebook transport.
                          */
-                        const finalState =
-                                await checkFinalState({
-                                        api,
-                                        threadID,
-                                        uid
-                                });
 
-                        if (
-                                finalState === "added"
-                        ) {
-                                added.push(uid);
+                        added.push(
+                                uid
+                        );
 
-                        } else if (
-                                finalState === "pending"
-                        ) {
-                                sentForApproval.push(
-                                        uid
-                                );
-
-                        } else {
-                                failed.push({
-                                        uid,
-                                        reason:
-                                                "User could not be added to the group."
-                                });
-                        }
+                        console.log(
+                                `[ADDUSER] Add request successful: ${uid}`
+                        );
 
                 } catch (error) {
                         console.error(
@@ -296,25 +296,23 @@ async function addUsers({
                                         error
                         );
 
+
                         /*
-                         * Even if API throws, check whether
-                         * Facebook actually processed it.
+                         * API threw an error.
+                         *
+                         * Quickly check whether Facebook
+                         * actually placed the user into
+                         * approval queue.
                          */
-                        const finalState =
-                                await checkFinalState({
+
+                        const pending =
+                                await isPending(
                                         api,
                                         threadID,
                                         uid
-                                });
+                                );
 
-                        if (
-                                finalState === "added"
-                        ) {
-                                added.push(uid);
-
-                        } else if (
-                                finalState === "pending"
-                        ) {
+                        if (pending) {
                                 sentForApproval.push(
                                         uid
                                 );
@@ -324,12 +322,23 @@ async function addUsers({
                                         uid,
                                         reason:
                                                 error?.message ||
-                                                "Failed to add user."
+                                                "Facebook rejected the add request."
                                 });
                         }
                 }
 
-                await sleep(800);
+
+                /*
+                 * Small delay only when adding multiple users.
+                 *
+                 * No 10-second verification.
+                 */
+
+                if (
+                        userIDs.length > 1
+                ) {
+                        await sleep(300);
+                }
         }
 
         return {
@@ -349,7 +358,7 @@ async function addUsers({
 module.exports = {
         config: {
                 name: "adduser",
-                version: "4.0",
+                version: "5.0",
                 author: "Rakib",
                 countDown: 5,
                 role: 1,
@@ -368,13 +377,14 @@ module.exports = {
                 }
         },
 
+
         langs: {
                 en: {
                         successAdd:
                                 "✅ Successfully added %1 user(s) to the group.",
 
                         waitApproval:
-                                "⏳ %1 user(s) are waiting for group approval.",
+                                "⏳ %1 user(s) could not be added and are waiting for group approval.",
 
                         failedAdd:
                                 "❌ Failed to add %1 user(s):"
@@ -383,16 +393,18 @@ module.exports = {
 
 
         /*
-         * Export shared logic
-         * pnduser will use this.
+         * Export shared logic.
+         *
+         * pnduser.js uses this same function.
          */
+
         addUsers,
 
 
         /*
-         * ======================================
+         * ==========================================
          * ON START
-         * ======================================
+         * ==========================================
          */
 
         onStart: async function ({
@@ -407,15 +419,16 @@ module.exports = {
 
 
                         /*
-                         * ==================================
+                         * ======================================
                          * REPLY SUPPORT
+                         * ======================================
                          *
                          * adduser reply to:
                          *
                          * UID
+                         * Facebook UID
                          * Facebook profile link
-                         * text containing UID
-                         * ==================================
+                         * Text containing UID
                          */
 
                         const reply =
@@ -431,9 +444,11 @@ module.exports = {
                                                 ""
                                         ).trim();
 
+
                                 /*
                                  * Extract UID(s)
                                  */
+
                                 const ids =
                                         body.match(
                                                 /\b\d{10,}\b/g
@@ -447,10 +462,12 @@ module.exports = {
                                         );
                                 }
 
+
                                 /*
-                                 * If no UID,
-                                 * try Facebook URL.
+                                 * Otherwise try
+                                 * Facebook URL.
                                  */
+
                                 else if (
                                         body
                                 ) {
@@ -462,9 +479,14 @@ module.exports = {
 
 
                         /*
-                         * No input
+                         * ======================================
+                         * NO INPUT
+                         * ======================================
                          */
-                        if (!inputs.length) {
+
+                        if (
+                                !inputs.length
+                        ) {
                                 return message.reply(
                                         "❌ Please provide a Facebook profile link or UID.\n\n" +
                                         "💡 You can also reply to a message containing a UID/profile link."
@@ -473,9 +495,9 @@ module.exports = {
 
 
                         /*
-                         * ==================================
-                         * RESOLVE ALL INPUTS
-                         * ==================================
+                         * ======================================
+                         * RESOLVE ALL UIDs
+                         * ======================================
                          */
 
                         const userIDs =
@@ -508,7 +530,7 @@ module.exports = {
 
                                 } catch (error) {
                                         console.error(
-                                                "[ADDUSER] UID:",
+                                                "[ADDUSER] UID resolve:",
                                                 error?.message ||
                                                         error
                                         );
@@ -519,7 +541,10 @@ module.exports = {
                         /*
                          * No valid UID
                          */
-                        if (!userIDs.length) {
+
+                        if (
+                                !userIDs.length
+                        ) {
                                 return message.reply(
                                         "❌ Could not find any valid UID."
                                 );
@@ -527,9 +552,9 @@ module.exports = {
 
 
                         /*
-                         * ==================================
-                         * ADD
-                         * ==================================
+                         * ======================================
+                         * ADD USERS
+                         * ======================================
                          */
 
                         const result =
@@ -544,17 +569,19 @@ module.exports = {
 
 
                         /*
-                         * ==================================
-                         * RESULT MESSAGE
-                         * ==================================
+                         * ======================================
+                         * BUILD RESULT
+                         * ======================================
                          */
 
-                        let msg = "";
+                        let msg =
+                                "";
 
 
                         /*
                          * SUCCESS
                          */
+
                         if (
                                 result.added.length
                         ) {
@@ -567,8 +594,10 @@ module.exports = {
                         /*
                          * PENDING
                          */
+
                         if (
-                                result.sentForApproval
+                                result
+                                        .sentForApproval
                                         .length
                         ) {
                                 msg +=
@@ -581,6 +610,7 @@ module.exports = {
                         /*
                          * FAILED
                          */
+
                         if (
                                 result.failed.length
                         ) {
@@ -601,6 +631,7 @@ module.exports = {
                         /*
                          * Nothing
                          */
+
                         if (!msg) {
                                 msg =
                                         "❌ No users were processed.";
@@ -631,12 +662,12 @@ module.exports = {
 
 /*
  * ==========================================
- * EXPORT HELPERS
+ * OPTIONAL EXPORTS
  * ==========================================
  */
 
 module.exports.resolveUID =
         resolveUID;
 
-module.exports.getGroupState =
-        getGroupState;
+module.exports.isPending =
+        isPending;
