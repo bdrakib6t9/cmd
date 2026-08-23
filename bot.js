@@ -7,17 +7,10 @@ const AI_API     = "https://rakib-api.vercel.app/api/simma-ct";
 const LISTEN_API = "https://rakib-api.vercel.app/api/simma-listen";
 
 const triggers = [
-  "bbz",
+  "bby",
   "bot",
   "tessa",
-  "babe",
-  "xanu",
-  "janu",
-  "bou",
-  "bby",
-  "জানু",
-  "বউ",
-  "বট",
+  "janu", 
   "baby"
 ];
 module.exports.config = {
