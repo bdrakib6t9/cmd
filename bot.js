@@ -155,6 +155,7 @@ const randomFallback = () =>
   );
 
 return randomFallback();
+} 
 
 /* ================= COMMAND ================= */
 module.exports.onStart = async ({ api, event, args }) => {
