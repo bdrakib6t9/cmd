@@ -13,6 +13,8 @@ module.exports = {
   },
 
   onStart: async function ({ api, event, usersData }) {
+    let outputPath = null;
+
     try {
       const senderID = String(event.senderID);
 
@@ -38,7 +40,7 @@ module.exports = {
       try {
         const senderData = await usersData.get(senderID);
 
-        if (senderData && senderData.name) {
+        if (senderData?.name) {
           senderName = senderData.name;
         }
       } catch (error) {
@@ -46,10 +48,6 @@ module.exports = {
           "[PAIR] usersData error:",
           error.message
         );
-
-        /*
-         * Fallback to event/thread data later
-         */
       }
 
       /* ================= THREAD INFO ================= */
@@ -65,30 +63,25 @@ module.exports = {
         );
       }
 
-      /*
-       * Different FCA versions may return
-       * userInfo / participantIDs / participants.
-       */
-
       let users = [];
 
       if (Array.isArray(threadData.userInfo)) {
         users = threadData.userInfo;
       }
 
-      /*
-       * Fallback if userInfo isn't available
-       */
-      if (!users.length && Array.isArray(threadData.participantIDs)) {
+      if (
+        !users.length &&
+        Array.isArray(threadData.participantIDs)
+      ) {
         users = threadData.participantIDs.map(id => ({
           id: String(id)
         }));
       }
 
-      /*
-       * Another possible structure
-       */
-      if (!users.length && Array.isArray(threadData.participants)) {
+      if (
+        !users.length &&
+        Array.isArray(threadData.participants)
+      ) {
         users = threadData.participants;
       }
 
@@ -99,7 +92,7 @@ module.exports = {
         );
       }
 
-      /* ================= FIND MY DATA ================= */
+      /* ================= GENDER ================= */
 
       function normalizeGender(gender) {
         if (typeof gender === "number") {
@@ -146,20 +139,23 @@ module.exports = {
         return null;
       }
 
-      /*
-       * Thread info may contain incomplete/old gender data.
-       * Use fresh getUserInfo() when gender is missing/unknown.
-       */
-      async function getFreshGender(userID, currentGender) {
-        const normalized = normalizeGender(currentGender);
+      async function getFreshGender(
+        userID,
+        currentGender
+      ) {
+        const normalized =
+          normalizeGender(currentGender);
 
         if (normalized) {
           return normalized;
         }
 
         try {
-          const info = await api.getUserInfo(String(userID));
-          const user = info?.[String(userID)];
+          const info =
+            await api.getUserInfo(String(userID));
+
+          const user =
+            info?.[String(userID)];
 
           return normalizeGender(
             user?.gender ?? user?.sex
@@ -177,7 +173,8 @@ module.exports = {
       /* ================= MY GENDER ================= */
 
       const myData = users.find(
-        user => getUserID(user) === senderID
+        user =>
+          getUserID(user) === senderID
       );
 
       if (!myData) {
@@ -187,10 +184,11 @@ module.exports = {
         );
       }
 
-      const myGender = await getFreshGender(
-        senderID,
-        myData.gender ?? myData.sex
-      );
+      const myGender =
+        await getFreshGender(
+          senderID,
+          myData.gender ?? myData.sex
+        );
 
       if (!myGender) {
         return api.sendMessage(
@@ -199,9 +197,9 @@ module.exports = {
         );
       }
 
-      /* ================= MATCH CANDIDATES ================= */
+      /* ================= MATCH ================= */
 
-      let matchCandidates = [];
+      const matchCandidates = [];
 
       for (const user of users) {
         const userID = getUserID(user);
@@ -210,14 +208,17 @@ module.exports = {
           continue;
         }
 
-        const gender = await getFreshGender(
-          userID,
-          user.gender ?? user.sex
-        );
+        const gender =
+          await getFreshGender(
+            userID,
+            user.gender ?? user.sex
+          );
 
         if (
-          (myGender === "MALE" && gender === "FEMALE") ||
-          (myGender === "FEMALE" && gender === "MALE")
+          (myGender === "MALE" &&
+            gender === "FEMALE") ||
+          (myGender === "FEMALE" &&
+            gender === "MALE")
         ) {
           matchCandidates.push({
             ...user,
@@ -237,7 +238,8 @@ module.exports = {
       const selectedMatch =
         matchCandidates[
           Math.floor(
-            Math.random() * matchCandidates.length
+            Math.random() *
+            matchCandidates.length
           )
         ];
 
@@ -253,12 +255,7 @@ module.exports = {
 
       /* ================= MATCH NAME ================= */
 
-      let matchName = "Unknown";
-
-      /*
-       * First try data already available from thread info
-       */
-      matchName =
+      let matchName =
         selectedMatch.name ||
         selectedMatch.fullName ||
         selectedMatch.displayName ||
@@ -266,31 +263,28 @@ module.exports = {
         selectedMatch.lastName ||
         "";
 
-      /*
-       * If thread data does not contain the name,
-       * fetch fresh user information using the exact UID.
-       */
       if (!matchName) {
         try {
-          const userInfo = await api.getUserInfo(
-            String(selectedMatchID)
-          );
+          const userInfo =
+            await api.getUserInfo(
+              String(selectedMatchID)
+            );
 
           const freshUser =
-            userInfo?.[String(selectedMatchID)] ||                     userInfo?.[selectedMatchID];
+            userInfo?.[String(selectedMatchID)] ||
+            userInfo?.[selectedMatchID];
 
           if (freshUser) {
             matchName =
               freshUser.name ||
               freshUser.fullName ||
               freshUser.displayName ||
-              freshUser.firstName ||
               (
                 freshUser.firstName &&
                 freshUser.lastName
                   ? `${freshUser.firstName} ${freshUser.lastName}`
-                  : ""
-              ) ||                                                       "";
+                  : freshUser.firstName || ""
+              );
           }
         } catch (error) {
           console.log(
@@ -300,13 +294,12 @@ module.exports = {
         }
       }
 
-      /*
-       * Final fallback: usersData
-       */
       if (!matchName && usersData) {
         try {
           const matchUserData =
-            await usersData.get(String(selectedMatchID));
+            await usersData.get(
+              String(selectedMatchID)
+            );
 
           if (matchUserData) {
             matchName =
@@ -348,7 +341,8 @@ module.exports = {
           url: "https://drive.google.com/uc?export=download&id=1fMiWIjFjJk9q89JPyAYU4LHHfoM_3N4w",
           type: "normal",
           pos: [
-            { x: 385, y: 40, w: 180, h: 180 },                         { x: 585, y: 180, w: 180, h: 180 }
+            { x: 385, y: 40, w: 180, h: 180 },
+            { x: 585, y: 180, w: 180, h: 180 }
           ]
         },
         {
@@ -356,7 +350,8 @@ module.exports = {
           url: "https://drive.google.com/uc?export=download&id=1BJQy4sj7lStDL1flpuZROuav2Ez2Wy21",
           type: "normal",
           pos: [
-            { x: 385, y: 40, w: 180, h: 180 },                         { x: 585, y: 180, w: 180, h: 180 }
+            { x: 385, y: 40, w: 180, h: 180 },
+            { x: 585, y: 180, w: 180, h: 180 }
           ]
         },
         {
@@ -366,7 +361,8 @@ module.exports = {
           pos: [
             { x: 115, y: 185, size: 200 },
             { x: 955, y: 185, size: 200 }
-          ]                                                        },
+          ]
+        },
         {
           id: 5,
           url: "https://drive.google.com/uc?export=download&id=19QEwghmb2jOmmqeFG-9ouAWYtQyHd0NF",
@@ -409,8 +405,10 @@ module.exports = {
           type: "circle",
           pos: [
             { x: 93, y: 111, size: 190 },
-            { x: 434, y: 107, size: 190 }                            ]
-        },                                                         {
+            { x: 434, y: 107, size: 190 }
+          ]
+        },
+        {
           id: 13,
           url: "https://drive.google.com/uc?export=download&id=1aWij6G1FgYDAVtdXALrocCA6xQzC5MMV",
           type: "circle",
@@ -420,7 +418,8 @@ module.exports = {
           ]
         },
         {
-          id: 14,                                                    url: "https://drive.google.com/uc?export=download&id=1pVnWlpZt0F1w0sTwgU3zJWiRkKHygikk",
+          id: 14,
+          url: "https://drive.google.com/uc?export=download&id=1pVnWlpZt0F1w0sTwgU3zJWiRkKHygikk",
           type: "circle",
           pos: [
             { x: 93, y: 111, size: 190 },
@@ -436,34 +435,40 @@ module.exports = {
             { x: 435, y: 109, size: 190 }
           ]
         },
-
         { id: 9, type: "dynamic" },
         { id: 10, type: "dynamic" },
         { id: 11, type: "dynamic" }
       ];
 
-      /* ================= SELECT BG ================= */  
+      /* ================= SELECT BG ================= */
+
       const args = String(event.body || "")
         .trim()
         .split(/\s+/);
 
       let selectedBg;
 
-      if (args[1] && !isNaN(args[1])) {
-        selectedBg = backgrounds.find(
-          bg => bg.id == args[1]
-        );
+      if (
+        args[1] &&
+        !isNaN(args[1])
+      ) {
+        selectedBg =
+          backgrounds.find(
+            bg => bg.id == args[1]
+          );
 
         if (!selectedBg) {
           return api.sendMessage(
             "❌ Invalid number! Use 1-15",
             event.threadID
           );
-        }                                                        } else {
+        }
+      } else {
         selectedBg =
           backgrounds[
             Math.floor(
-              Math.random() * backgrounds.length
+              Math.random() *
+              backgrounds.length
             )
           ];
       }
@@ -477,24 +482,28 @@ module.exports = {
         canvas = createCanvas(900, 500);
         ctx = canvas.getContext("2d");
       } else {
-        const res = await axios.get(
-          selectedBg.url,
-          {
-            responseType: "arraybuffer",
-            timeout: 60000
-          }
-        );
+        const res =
+          await axios.get(
+            selectedBg.url,
+            {
+              responseType: "arraybuffer",
+              timeout: 60000
+            }
+          );
 
-        const baseImage = await loadImage(
-          Buffer.from(res.data)
-        );
+        const baseImage =
+          await loadImage(
+            Buffer.from(res.data)
+          );
 
-        canvas = createCanvas(
-          baseImage.width,
-          baseImage.height
-        );
+        canvas =
+          createCanvas(
+            baseImage.width,
+            baseImage.height
+          );
 
-        ctx = canvas.getContext("2d");
+        ctx =
+          canvas.getContext("2d");
 
         ctx.drawImage(
           baseImage,
@@ -514,24 +523,41 @@ module.exports = {
         await getAvatarUrl(senderID);
 
       const avatar2URL =
-        await getAvatarUrl(selectedMatchID);
+        await getAvatarUrl(
+          selectedMatchID
+        );
 
-      if (!avatar1URL || !avatar2URL) {
+      if (
+        !avatar1URL ||
+        !avatar2URL
+      ) {
         return api.sendMessage(
           "❌ Failed to get avatar.",
           event.threadID
         );
       }
-                                                                 const avatar1 =
-        await loadImage(avatar1URL);
+
+      const avatar1 =
+        await loadImage(
+          avatar1URL
+        );
 
       const avatar2 =
-        await loadImage(avatar2URL);
+        await loadImage(
+          avatar2URL
+        );
 
       const lovePercent =
-        Math.floor(Math.random() * 31) + 70;
+        Math.floor(
+          Math.random() * 31
+        ) + 70;
 
-      const compatibility =                                        Math.floor(Math.random() * 21) + 80;
+      const compatibility =
+        Math.floor(
+          Math.random() * 21
+        ) + 80;
+
+      /* ================= DRAW HELPERS ================= */
 
       function drawCircle(
         ctx,
@@ -540,7 +566,8 @@ module.exports = {
         y,
         size
       ) {
-        ctx.save();                                        
+        ctx.save();
+
         ctx.beginPath();
 
         ctx.arc(
@@ -549,7 +576,8 @@ module.exports = {
           size / 2,
           0,
           Math.PI * 2
-        );                                                 
+        );
+
         ctx.clip();
 
         ctx.drawImage(
@@ -558,7 +586,8 @@ module.exports = {
           y,
           size,
           size
-        );                                                 
+        );
+
         ctx.restore();
       }
 
@@ -567,25 +596,37 @@ module.exports = {
         W,
         H,
         name1,
-        name2,                                                     lovePercent,
+        name2,
+        lovePercent,
         compatibility
       ) {
+        ctx.shadowColor =
+          "#ff4d6d";
 
-        ctx.shadowColor = "#ff4d6d";
         ctx.shadowBlur = 25;
 
-        ctx.font = "bold 80px sans-serif";
-        ctx.fillStyle = "#ffffff";
-        ctx.textAlign = "center";                          
+        ctx.font =
+          "bold 80px sans-serif";
+
+        ctx.fillStyle =
+          "#ffffff";
+
+        ctx.textAlign =
+          "center";
+
         ctx.fillText(
           "❤️",
           W / 2,
           H / 2 - 10
         );
 
-        ctx.font = "bold 55px sans-serif";
-        ctx.fillStyle = "#00f7ff";
-                                                                   ctx.fillText(
+        ctx.font =
+          "bold 55px sans-serif";
+
+        ctx.fillStyle =
+          "#00f7ff";
+
+        ctx.fillText(
           lovePercent + "%",
           W / 2,
           H / 2 + 70
@@ -594,7 +635,8 @@ module.exports = {
         ctx.shadowBlur = 0;
 
         const grad =
-          ctx.createLinearGradient(                                    W / 2 - 120,
+          ctx.createLinearGradient(
+            W / 2 - 120,
             0,
             W / 2 + 120,
             0
@@ -603,7 +645,8 @@ module.exports = {
         grad.addColorStop(
           0,
           "transparent"
-        );                                                 
+        );
+
         grad.addColorStop(
           0.5,
           "#ffffff"
@@ -612,7 +655,8 @@ module.exports = {
         grad.addColorStop(
           1,
           "transparent"
-        );                                                 
+        );
+
         ctx.fillStyle = grad;
 
         ctx.fillRect(
@@ -621,9 +665,12 @@ module.exports = {
           240,
           2
         );
-                                                                   ctx.font = "bold 28px sans-serif";
 
-        ctx.fillStyle = "#00f7ff";
+        ctx.font =
+          "bold 28px sans-serif";
+
+        ctx.fillStyle =
+          "#00f7ff";
 
         ctx.fillText(
           name1,
@@ -631,7 +678,8 @@ module.exports = {
           H / 2 + 150
         );
 
-        ctx.fillStyle = "#ff00c8";
+        ctx.fillStyle =
+          "#ff00c8";
 
         ctx.fillText(
           name2,
@@ -664,15 +712,24 @@ module.exports = {
           "#a18cd1"
         );
 
-        ctx.font = "bold 26px sans-serif";
-        ctx.fillStyle = soulGrad;
-        ctx.textAlign = "center";
+        ctx.font =
+          "bold 26px sans-serif";
 
-        ctx.shadowColor = "#ff9a9e";
+        ctx.fillStyle =
+          soulGrad;
+
+        ctx.textAlign =
+          "center";
+
+        ctx.shadowColor =
+          "#ff9a9e";
+
         ctx.shadowBlur = 15;
 
         ctx.fillText(
-          "❀ " + compatibility + "% Soul",
+          "❀ " +
+            compatibility +
+            "% Soul",
           W / 2,
           H / 2 + 200
         );
@@ -701,7 +758,9 @@ module.exports = {
         );
 
         ctx.shadowBlur = 0;
-        ctx.fillStyle = lineGrad;
+
+        ctx.fillStyle =
+          lineGrad;
 
         ctx.fillRect(
           W / 2 - 80,
@@ -755,7 +814,9 @@ module.exports = {
           Math.PI * 2
         );
 
-        ctx.strokeStyle = ring;
+        ctx.strokeStyle =
+          ring;
+
         ctx.lineWidth = 10;
 
         ctx.shadowColor =
@@ -792,16 +853,15 @@ module.exports = {
         ctx.restore();
       }
 
-      /* ================================================= */
-      /* ================= DYNAMIC ======================= */
-      /* ================================================= */
+      /* ================= DYNAMIC ================= */
 
-      if (selectedBg.type === "dynamic") {
-
+      if (
+        selectedBg.type ===
+        "dynamic"
+      ) {
         /* ================= ID 9 ================= */
 
         if (selectedBg.id === 9) {
-
           const grad =
             ctx.createLinearGradient(
               0,
@@ -829,8 +889,11 @@ module.exports = {
             H
           );
 
-          for (let i = 0; i < 4; i++) {
-
+          for (
+            let i = 0;
+            i < 4;
+            i++
+          ) {
             ctx.beginPath();
 
             ctx.arc(
@@ -859,23 +922,31 @@ module.exports = {
           const baseAngle =
             Date.now() * 0.002;
 
-          for (let i = 0; i < 12; i++) {
-
+          for (
+            let i = 0;
+            i < 12;
+            i++
+          ) {
             const angle =
               baseAngle +
-              (Math.PI * 2 / 12) * i;
+              (Math.PI * 2 / 12) *
+                i;
 
             const x =
               W / 2 +
-              Math.cos(angle) * 140;
+              Math.cos(angle) *
+                140;
 
             const y =
               H / 2 +
-              Math.sin(angle) * 140;
+              Math.sin(angle) *
+                140;
 
-            ctx.globalAlpha = 0.8;
+            ctx.globalAlpha =
+              0.8;
 
-            ctx.font = "20px serif";
+            ctx.font =
+              "20px serif";
 
             ctx.fillText(
               "love",
@@ -886,13 +957,17 @@ module.exports = {
 
           ctx.globalAlpha = 1;
 
-          for (let i = 0; i < 60; i++) {
-
+          for (
+            let i = 0;
+            i < 60;
+            i++
+          ) {
             ctx.globalAlpha =
               Math.random();
 
             ctx.fillStyle =
-              Math.random() > 0.5
+              Math.random() >
+              0.5
                 ? "#ffffff"
                 : "#ffe6eb";
 
@@ -942,10 +1017,11 @@ module.exports = {
             x < W - 300;
             x += 10
           ) {
-
             const y =
               H / 2 +
-              Math.sin(x * 0.03) * 12;
+              Math.sin(
+                x * 0.03
+              ) * 12;
 
             ctx.lineTo(
               x,
@@ -953,7 +1029,9 @@ module.exports = {
             );
           }
 
-          ctx.strokeStyle = "#ffffff";
+          ctx.strokeStyle =
+            "#ffffff";
+
           ctx.lineWidth = 3;
 
           ctx.shadowColor =
@@ -979,7 +1057,6 @@ module.exports = {
         /* ================= ID 10 ================= */
 
         if (selectedBg.id === 10) {
-
           const grad =
             ctx.createLinearGradient(
               0,
@@ -995,9 +1072,12 @@ module.exports = {
 
           grad.addColorStop(
             1,
-            "#001d3d"                                                );
-                                                                     ctx.fillStyle = grad;
-                                                                     ctx.fillRect(
+            "#001d3d"
+          );
+
+          ctx.fillStyle = grad;
+
+          ctx.fillRect(
             0,
             0,
             W,
@@ -1006,8 +1086,11 @@ module.exports = {
 
           const stars = [];
 
-          for (let i = 0; i < 100; i++) {
-
+          for (
+            let i = 0;
+            i < 100;
+            i++
+          ) {
             const x =
               Math.random() * W;
 
@@ -1015,7 +1098,8 @@ module.exports = {
               Math.random() * H;
 
             const r =
-              Math.random() * 2 + 0.5;
+              Math.random() * 2 +
+              0.5;
 
             stars.push({
               x,
@@ -1055,13 +1139,11 @@ module.exports = {
             i < stars.length;
             i++
           ) {
-
             for (
               let j = i + 1;
               j < stars.length;
               j++
             ) {
-
               const dx =
                 stars[i].x -
                 stars[j].x;
@@ -1077,7 +1159,6 @@ module.exports = {
                 );
 
               if (dist < 110) {
-
                 ctx.beginPath();
 
                 ctx.moveTo(
@@ -1166,7 +1247,6 @@ module.exports = {
         /* ================= ID 11 ================= */
 
         if (selectedBg.id === 11) {
-
           const grad =
             ctx.createLinearGradient(
               0,
@@ -1247,13 +1327,17 @@ module.exports = {
 
           ctx.fill();
 
-          for (let i = 0; i < 60; i++) {
-
+          for (
+            let i = 0;
+            i < 60;
+            i++
+          ) {
             const x =
               Math.random() * W;
 
             const y =
-              Math.random() * (H / 2);
+              Math.random() *
+              (H / 2);
 
             ctx.globalAlpha =
               Math.random();
@@ -1300,8 +1384,11 @@ module.exports = {
             H
           );
 
-          for (let i = 0; i < 25; i++) {
-
+          for (
+            let i = 0;
+            i < 25;
+            i++
+          ) {
             ctx.beginPath();
 
             ctx.moveTo(
@@ -1314,7 +1401,6 @@ module.exports = {
               x < W;
               x += 15
             ) {
-
               const y =
                 H / 2 +
                 i * 5 +
@@ -1371,13 +1457,13 @@ module.exports = {
             compatibility
           );
         }
-
       } else {
-
         /* ================= NORMAL / CIRCLE ================= */
 
-        if (selectedBg.type === "circle") {
-
+        if (
+          selectedBg.type ===
+          "circle"
+        ) {
           drawCircle(
             ctx,
             avatar1,
@@ -1400,9 +1486,7 @@ module.exports = {
             selectedBg.pos[1].y,
             selectedBg.pos[1].size
           );
-
         } else {
-
           ctx.drawImage(
             avatar1,
             selectedBg.pos[0].x,
@@ -1428,28 +1512,68 @@ module.exports = {
         }
       }
 
-      /* ================= OUTPUT ================= */
+      /* ================================================= */
+      /* ================= OUTPUT FIX ==================== */
+      /* ================================================= */
 
-      const outputPath =
+      outputPath =
         path.join(
           __dirname,
-          "pair_output.png"
+          `pair_output_${process.pid}_${Date.now()}.png`
         );
 
-      const out =
-        fs.createWriteStream(
+      /*
+       * Generate the complete PNG in memory first.
+       * This prevents the upload/read race condition.
+       */
+      const pngBuffer =
+        canvas.toBuffer("image/png");
+
+      if (
+        !pngBuffer ||
+        !pngBuffer.length
+      ) {
+        throw new Error(
+          "Failed to generate PNG buffer."
+        );
+      }
+
+      await fs.promises.writeFile(
+        outputPath,
+        pngBuffer
+      );
+
+      /*
+       * Make absolutely sure the file exists
+       * before passing it to FCA.
+       */
+      await fs.promises.access(
+        outputPath,
+        fs.constants.R_OK
+      );
+
+      const stats =
+        await fs.promises.stat(
           outputPath
         );
 
-      canvas
-        .createPNGStream()
-        .pipe(out);
+      console.log(
+        `[PAIR] Image created: ${outputPath} (${stats.size} bytes)`
+      );
 
-      out.on("finish", () => {
+      if (stats.size === 0) {
+        throw new Error(
+          "Generated PNG file is empty."
+        );
+      }
 
-        api.sendMessage(
-          {
-            body:
+      /* ================= SEND ================= */
+
+      await new Promise(
+        (resolve, reject) => {
+          api.sendMessage(
+            {
+              body:
 `💖✨ 𝐄𝐥𝐞𝐠𝐚𝐧𝐭 𝐏𝐚𝐢𝐫 𝐑𝐞𝐯𝐞𝐚𝐥 ✨💖
 🌙 𝑻𝒐𝒏𝒊𝒈𝒉𝒕, 𝒅𝒆𝒔𝒕𝒊𝒏𝒚 𝒘𝒉𝒊𝒔𝒑𝒆𝒓𝒔 𝒔𝒐𝒇𝒕𝒍𝒚...
 💫 𝑻𝒘𝒐 𝒔𝒐𝒖𝒍𝒔 𝒎𝒆𝒆𝒕 𝒖𝒏𝒅𝒆𝒓 𝒕𝒉𝒆 𝒈𝒍𝒐𝒘 𝒐𝒇 𝒇𝒂𝒕𝒆.
@@ -1461,21 +1585,27 @@ module.exports = {
 🌟 𝑺𝒐𝒖𝒍 𝑨𝒍𝒊𝒈𝒏𝒎𝒆𝒏𝒕: ${compatibility}%
 ━━━━━━━━━━━━━━━
 💌 𝑴𝒂𝒚 𝒕𝒉𝒊𝒔 𝒃𝒐𝒏𝒅 𝒈𝒓𝒐𝒘 𝒔𝒕𝒓𝒐𝒏𝒈𝒆𝒓 𝒆𝒗𝒆𝒓𝒚 𝒅𝒂𝒚 ✨`,
-            attachment:
-              fs.createReadStream(
-                outputPath
-              )
-          },
-          event.threadID,
-          () => {
-            try {
-              if (fs.existsSync(outputPath)) {
-                fs.unlinkSync(outputPath);
+              attachment:
+                fs.createReadStream(
+                  outputPath
+                )
+            },
+            event.threadID,
+            error => {
+              if (error) {
+                reject(error);
+                return;
               }
-            } catch {}
-          }
-        );
-      });
+
+              resolve();
+            }
+          );
+        }
+      );
+
+      console.log(
+        "[PAIR] Image sent successfully."
+      );
 
     } catch (err) {
       console.error(
@@ -1483,11 +1613,44 @@ module.exports = {
         err
       );
 
-      return api.sendMessage(
-        "❌ Error:\n" +
-        err.message,
-        event.threadID
-      );
+      try {
+        await api.sendMessage(
+          "❌ Error:\n" +
+            (err?.message ||
+              String(err)),
+          event.threadID
+        );
+      } catch (sendError) {
+        console.error(
+          "[PAIR] Failed to send error message:",
+          sendError.message
+        );
+      }
+    } finally {
+      /*
+       * Always remove generated file.
+       */
+      if (outputPath) {
+        try {
+          await fs.promises.unlink(
+            outputPath
+          );
+
+          console.log(
+            `[PAIR] Temporary file removed: ${outputPath}`
+          );
+        } catch (cleanupError) {
+          if (
+            cleanupError.code !==
+            "ENOENT"
+          ) {
+            console.log(
+              "[PAIR] Cleanup error:",
+              cleanupError.message
+            );
+          }
+        }
+      }
     }
   }
 };
