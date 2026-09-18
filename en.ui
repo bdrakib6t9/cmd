@@ -1,0 +1,699 @@
+index.js
+
+Goat.newVersionDetected=╭─「 🔔 UPDATE AVAILABLE 」
+│ 📦 Current : v%1
+│ 🚀 Latest  : v%2
+│
+│ Please update to the latest version
+│ for a better bot experience.
+│
+╰─➤ 💻 Run: %3
+
+Goat.autoRestart1=╭─「 🔄 AUTO RESTART 」
+│ 🤖 Bot will automatically restart
+│ ⏱️ In: %1
+╰───────────────
+
+Goat.autoRestart2=╭─「 ⏰ CRON RESTART 」
+│ 🤖 Bot will automatically restart
+│ 🕐 Schedule: %1
+╰───────────────
+
+Goat.googleApiTokenExpired=╭─「 🔑 GOOGLE API 」
+│ ⚠️ Google API refresh token has
+│ expired or has been revoked.
+│
+╰─➤ 🌐 Get a new token:
+https://developers.google.com/oauthplayground/
+
+bot/login/login.js
+
+login.currentlyLogged=╭─「 🔐 LOGIN 」
+│ ⏳ Login is currently in progress...
+╰───────────────
+
+login.notFoundDirAccount=╭─「 📂 ACCOUNT ERROR 」
+│ ❌ Cannot find account file:
+│ %1
+╰───────────────
+
+login.loginToken=╭─「 🔑 LOGIN METHOD 」
+│ Logging in with access token...
+╰───────────────
+
+login.loginCookieString=╭─「 🍪 LOGIN METHOD 」
+│ Logging in with cookie string...
+╰───────────────
+
+login.loginCookieNetscape=╭─「 🍪 LOGIN METHOD 」
+│ Logging in with Netscape cookies...
+╰───────────────
+
+login.loginCookieArray=╭─「 🍪 LOGIN METHOD 」
+│ Logging in with cookie array...
+╰───────────────
+
+login.loginPassword=╭─「 🔐 LOGIN METHOD 」
+│ Logging in with email & password...
+╰───────────────
+
+login.accountError=╭─「 ❌ INVALID ACCOUNT DATA 」
+│ Please provide a valid token or cookie.
+│
+│ 🔑 Token:
+│ %1
+│
+│ 🍪 Cookie String:
+│ %2
+│
+│ 🍪 Cookie Array:
+│ [
+│   { name: %3, value: %4 },
+│   { name: %5, value: %6 }
+│ ]
+│
+│ 📂 File:
+│ %7
+╰───────────────
+
+login.cannotFindAccount=╭─「 👤 FACEBOOK ACCOUNT 」
+│ ⚠️ No Facebook account was found.
+│
+│ Choose a login method:
+│
+│ 1️⃣ Email & Password
+│ 2️⃣ Full-Permission Token
+│ 3️⃣ Cookie String
+│ 4️⃣ Cookie Array
+│
+│ 🎮 Enter a number or use ↑ ↓
+│ and press Enter to confirm.
+╰───────────────
+
+login.chooseAccount=1️⃣ Login with email & password
+login.chooseToken=2️⃣ Login with full-permission token
+login.chooseCookieString=3️⃣ Login with cookie string
+login.chooseCookieArray=4️⃣ Login with cookie array
+
+login.loginWith=╭─「 🎯 LOGIN METHOD 」
+│ ✅ Selected: %1
+╰───────────────
+
+login.inputEmail=📧 Enter Facebook email / phone:
+login.inputPassword=🔐 Enter Facebook password:
+login.input2FA=🔢 Enter 2FA code (leave blank if disabled):
+login.inputToken=🔑 Enter full-permission token (starts with EAAAA):
+login.inputCookieString=🍪 Enter Facebook cookie string:
+login.inputCookieArray=🍪 Enter Facebook cookie array:
+
+login.refreshCookie=╭─「 🍪 COOKIE REFRESH 」
+│ 🔄 Refreshing Facebook cookie...
+╰───────────────
+
+login.refreshCookieError=╭─「 ❌ COOKIE REFRESH 」
+│ Failed to refresh the Facebook cookie.
+╰───────────────
+
+login.refreshCookieSuccess=╭─「 ✅ COOKIE REFRESHED 」
+│ Cookie refreshed successfully.
+│
+╰─➤ 🔄 Restart the bot to use the new cookie.
+╰───────────────
+
+login.refreshCookieWarning=╭─「 ⚠️ AUTO REFRESH 」
+│ Auto cookie refresh is enabled,
+│ but email & password are not
+│ configured in config.json.
+╰───────────────
+
+login.tokenError=╭─「 ❌ TOKEN ERROR 」
+│ The token is invalid or expired.
+│
+│ 🔑 Required format:
+│ %1
+│
+│ 📂 File:
+│ %2
+╰───────────────
+
+login.cookieError=╭─「 ❌ COOKIE ERROR 」
+│ Facebook cookie is invalid or expired.
+╰───────────────
+
+login.loginPasswordError=╭─「 ❌ LOGIN ERROR 」
+│ Unable to login using the email &
+│ password configured in config.json.
+╰───────────────
+
+login.loginSuccess=╭─「 ✅ LOGIN SUCCESS 」
+│ Facebook account logged in successfully.
+╰───────────────
+
+login.loginError=╭─「 ❌ LOGIN FAILED 」
+│ An unexpected error occurred
+│ while signing in to Facebook.
+╰───────────────
+
+login.openDashboardSuccess=╭─「 🖥️ DASHBOARD 」
+│ Dashboard opened successfully.
+╰───────────────
+
+login.openDashboardError=╭─「 ❌ DASHBOARD ERROR 」
+│ Unable to open the bot management
+│ dashboard.
+╰───────────────
+
+login.changeGbanData=╭─「 🔒 SECURITY LOCK 」
+│ ⚠️ Global ban data has been changed.
+│
+│ 🚫 Bot launch is currently disabled.
+╰───────────────
+
+login.errorNoti=╭─「 ❌ NOTIFICATION ERROR 」
+│ Unable to retrieve the message.
+╰───────────────
+
+login.refreshFbstateSuccess=╭─「 🔄 FBSTATE 」
+│ ✅ Refreshed %1 successfully.
+╰───────────────
+
+login.refreshFbstateError=╭─「 ❌ FBSTATE ERROR 」
+│ Failed to refresh %1.
+╰───────────────
+
+login.youAreBanned=╭─「 🚫 ACCESS DENIED 」
+│ You have been banned from the
+│ Goat-Bot project.
+╰───────────────
+
+login.runBot=╭─「 🟢 BOT ONLINE 」
+│ Bot launched successfully.
+│
+│ 📡 Status: ONLINE
+│ 💬 Ready to receive messages.
+╰───────────────
+
+login.notLoggedIn=╭─「 🔐 LOGIN REQUIRED 」
+│ Something went wrong.
+│
+│ 🔍 Please check your Facebook
+│ account again.
+╰───────────────
+
+login.callBackError=╭─「 ❌ MQTT ERROR 」
+│ An error occurred while starting
+│ the ListenMQTT callback.
+╰───────────────
+
+login.userBanned=╭─「 🚫 ACCESS REVOKED 」
+│ You are not allowed to use this bot.
+╰───────────────
+
+login.checkGbanError=╭─「 ❌ GBAN ERROR 」
+│ Unable to verify global ban status.
+│
+╰─➤ 🔄 Update the source and try again.
+╰─➤ 💻 Command: node update
+
+login.gbanMessage=╭─「 🚫 GLOBAL BAN 」
+│ You have been banned from Goat-Bot
+│ on %1
+│
+│ 📝 Reason : %2
+│ 🕐 Time   : %3
+╰───────────────
+
+login.gbanMessageToDate=╭─「 🚫 GLOBAL BAN 」
+│ You have been banned from Goat-Bot
+│ on %1
+│
+│ 📝 Reason : %2
+│ 🕐 Time   : %3
+│ 📅 Until  : %4
+╰───────────────
+
+login.gbanAdminMessage=╭─「 🚫 GLOBAL BAN 」
+│ 👤 User: %1
+│ 🌐 Project: %2
+│ 📝 Reason: %3
+╰───────────────
+
+login.openServerUptimeSuccess=╭─「 🚀 UPTIME SERVER 」
+│ ✅ Uptime server started successfully.
+│
+╰─➤ 🌐 %1
+╰───────────────
+
+login.openServerUptimeError=╭─「 ❌ UPTIME ERROR 」
+│ Unable to start the uptime server.
+╰───────────────
+
+login.restartListenMessage=╭─「 🔄 MQTT AUTO-RESTART 」
+│ ✅ ListenMQTT auto-restart enabled.
+│
+│ ⏱️ Interval: %1
+╰───────────────
+
+login.stopRestartListenMessage=╭─「 ⏹️ MQTT AUTO-RESTART 」
+│ ListenMQTT auto-restart disabled.
+╰───────────────
+
+login.restartListenMessageError=╭─「 ❌ MQTT ERROR 」
+│ Failed to restart ListenMQTT.
+╰───────────────
+
+login.restartListenMessage2=╭─「 🔄 MQTT RESTART 」
+│ ListenMQTT restarted successfully.
+╰───────────────
+
+login.refreshCookieAfter=╭─「 🍪 COOKIE REFRESH 」
+│ 🔄 Next refresh in: %1
+╰───────────────
+
+login.listenMqttClose=╭─「 🔌 MQTT 」
+│ ListenMQTT connection closed.
+╰───────────────
+
+login.listenMqttCloseByUser=╭─「 ⏹️ MQTT 」
+│ ListenMQTT was stopped by the user.
+╰───────────────
+
+login.retryCheckLiveCookie=╭─「 🔍 COOKIE CHECK 」
+│ Checking Facebook cookie again...
+│
+│ 🔄 Attempt: %1
+╰───────────────
+
+login.startBotSuccess=╭─「 🟢 TESSA BOT ONLINE 」
+│ Bot started successfully.
+│
+│ 📡 Status: ONLINE
+│ 💬 Ready to receive messages.
+╰───────────────
+
+version
+
+version.tooOldVersion=╭─「 ⚠️ VERSION OUTDATED 」
+│ Your Goat-Bot version is too old.
+│
+│ 🔄 Please update to the latest version.
+│
+╰─➤ 💻 Command: %1
+╰───────────────
+
+bot/custom.js
+
+custom.refreshedFb_dtsg=╭─「 🔄 FACEBOOK DATA 」
+│ ✅ fb_dtsg & jazoest refreshed successfully.
+╰───────────────
+
+custom.refreshedFb_dtsgError=╭─「 ❌ FACEBOOK DATA ERROR 」
+│ Failed to refresh fb_dtsg & jazoest.
+╰───────────────
+
+bot/login/loadData.js
+
+loadData.loadThreadDataSuccess=╭─「 👥 GROUP DATA 」
+│ ✅ Loaded %1 group records successfully.
+╰───────────────
+
+loadData.loadUserDataSuccess=╭─「 👤 USER DATA 」
+│ ✅ Loaded %1 user records successfully.
+╰───────────────
+
+loadData.refreshingThreadData=╭─「 🔄 GROUP DATA 」
+│ Updating group information...
+╰───────────────
+
+loadData.refreshThreadDataSuccess=╭─「 ✅ GROUP DATA UPDATED 」
+│ Updated information for %1 group.
+╰───────────────
+
+loadData.refreshThreadDataError=╭─「 ❌ GROUP DATA ERROR 」
+│ Something went wrong while updating
+│ group information.
+╰───────────────
+
+bot/login/loadScripts.js
+
+loadScripts.loadScriptsError=╭─「 ❌ SCRIPT ERROR 」
+│ The following %1 files have errors:
+╰───────────────
+
+loadScripts.loadScriptsNotMatchOrigin=╭─「 ⚠️ SOURCE WARNING 」
+│ The following %1 files do not match
+│ the original GitHub source.
+│
+│ 🔐 Make sure these command files
+│ are trusted.
+╰───────────────
+
+loadScripts.NOT_FOUND=╭─「 🔎 SOURCE CHECK 」
+│ NOT FOUND IN ORIGINAL SOURCE:
+╰───────────────
+
+loadScripts.NOT_MATCH=╭─「 ⚠️ SOURCE CHECK 」
+│ DOES NOT MATCH ORIGINAL SOURCE:
+╰───────────────
+
+bot/login/socketIO.js
+
+socketIO.connected=╭─「 🔌 SOCKET.IO 」
+│ ✅ Connected to Socket.IO server.
+╰───────────────
+
+socketIO.error=╭─「 ❌ SOCKET.IO ERROR 」
+│ Failed to connect to Socket.IO server.
+╰───────────────
+
+bot/handler/handlerCheckData.js
+
+handlerCheckData.cantCreateThread=╭─「 ❌ DATABASE ERROR 」
+│ Unable to save group:
+│ %1
+╰───────────────
+
+handlerCheckData.cantCreateUser=╭─「 ❌ DATABASE ERROR 」
+│ Unable to save user:
+│ %1
+╰───────────────
+
+bot/handler/handlerEvents.js
+
+handlerEvents.onlyPrefix=╭─「 ℹ️ PREFIX 」
+│ This is my prefix.
+│
+╰─➤ 💡 Type %1help to explore commands.
+╰───────────────
+
+handlerEvents.userBanned=╭─「 🚫 ACCESS DENIED 」
+│ Your access has been revoked.
+│
+│ 📝 Reason   : %1
+│ ⏱️ Duration : %2
+│ 🆔 User ID  : %3
+╰───────────────
+
+handlerEvents.threadBanned=╭─「 🚫 CHAT RESTRICTED 」
+│ This group is currently restricted.
+│
+│ 📝 Reason  : %1
+│ 📅 Expires : %2
+│ 🆔 TID     : %3
+╰───────────────
+
+handlerEvents.onlyAdminBox=╭─「 👑 ADMIN ONLY 」
+│ Only group administrators can
+│ use this command here.
+╰───────────────
+
+handlerEvents.onlyAdminBot=╭─「 🛡️ BOT ADMIN 」
+│ This command is restricted to
+│ Bot Administrators.
+╰───────────────
+
+handlerEvents.commandNotFound=╭─「 🔍 COMMAND NOT FOUND 」
+│ Unknown command: "%1"
+│
+╰─➤ 💡 Type %2help to see available commands.
+╰───────────────
+
+handlerEvents.commandNotFound2=╭─「 ℹ️ PREFIX 」
+│ This is my prefix.
+│
+╰─➤ 💡 Type %1help to explore commands.
+╰───────────────
+
+handlerEvents.commandNotFoundWithSuggestion=╭─「 🤔 COMMAND NOT FOUND 」
+│ Command "%1" was not found.
+│
+╰─➤ 💡 Did you mean "%3"?
+│
+╰─➤ 📚 Type %2help for more commands.
+╰───────────────
+
+handlerEvents.commandSyntaxError=╭─「 🛠️ INVALID SYNTAX 」
+│ Incorrect command format.
+│
+╰─➤ 📖 Usage: %1help %2
+╰───────────────
+
+handlerEvents.onlyAdmin=╭─「 👑 ADMIN ONLY 」
+│ Permission required.
+│
+│ 📌 Command : %1
+│ 👑 Access  : Group Admin
+╰───────────────
+
+handlerEvents.onlyAdminToUseOnReply=╭─「 👑 ADMIN ONLY 」
+│ Only group administrators can
+│ use "%1" through replies.
+╰───────────────
+
+handlerEvents.onlyAdminToUseOnReaction=╭─「 👑 ADMIN ONLY 」
+│ Only group administrators can
+│ use "%1" through reactions.
+╰───────────────
+
+handlerEvents.onlyAdminBot2=╭─「 ⚡ BOT DEV 」
+│ Developer permission required.
+│
+│ 📌 Command : %1
+│ ⚡ Access  : Bot Developer
+╰───────────────
+
+handlerEvents.onlyAdminBot2ToUseOnReply=╭─「 ⚡ BOT DEV 」
+│ Developer permission is required
+│ to use "%1" through replies.
+╰───────────────
+
+handlerEvents.onlyAdminBot2ToUseOnReaction=╭─「 ⚡ BOT DEV 」
+│ Developer permission is required
+│ to use "%1" through reactions.
+╰───────────────
+
+handlerEvents.waitingForCommand=╭─「 ⏳ COOLDOWN 」
+│ Please wait %1s before using
+│ this command again.
+╰───────────────
+
+handlerEvents.errorOccurred=╭─「 ⚡ COMMAND ERROR 」
+│ 📦 Module : %1
+│ ⚙️ Command: %2
+│
+%3
+╰───────────────
+
+handlerEvents.errorOccurred2=╭─「 ⚡ CHAT ERROR 」
+│ 📦 Module : %1
+│ ⚙️ Command: %2
+│
+%3
+╰───────────────
+
+handlerEvents.errorOccurred3=╭─「 ⚡ REPLY ERROR 」
+│ 📦 Module : %1
+│ ⚙️ Command: %2
+│
+%3
+╰───────────────
+
+handlerEvents.errorOccurred4=╭─「 ⚡ REACTION ERROR 」
+│ 📦 Module : %1
+│ ⚙️ Command: %2
+│
+%3
+╰───────────────
+
+handlerEvents.errorOccurred5=╭─「 ⚡ EVENT ERROR 」
+│ 📦 Module : %1
+│ ⚙️ Command: %2
+│
+%3
+╰───────────────
+
+handlerEvents.errorOccurred6=╭─「 ⚡ EVENT ERROR 」
+│ 📌 Event: %1
+│
+%2
+╰───────────────
+
+handlerEvents.errorOccurred7=╭─「 ⚡ ANY EVENT ERROR 」
+│ 📌 Event: %1
+│
+%2
+╰───────────────
+
+handlerEvents.cannotFindCommandName=╭─「 🧩 REPLY ERROR 」
+│ Unable to determine the command
+│ name for this reply.
+╰───────────────
+
+handlerEvents.cannotFindCommand=╭─「 🧩 REPLY ERROR 」
+│ Command "%1" could not be found.
+╰───────────────
+
+bot/autoUptime.js
+
+autoUptime.autoUptimeTurnedOn=╭─「 🚀 AUTO UPTIME 」
+│ ✅ AutoUptime mode is now active.
+│
+│ 🤖 Bot will automatically maintain
+│ its uptime service.
+╰───────────────
+
+database/controller/index.js
+
+indexController.connectingMongoDB=╭─「 🗄️ DATABASE 」
+│ 🔄 Connecting to MongoDB...
+╰───────────────
+
+indexController.connectMongoDBSuccess=╭─「 🟢 DATABASE ONLINE 」
+│ ✅ MongoDB connected successfully.
+╰───────────────
+
+indexController.connectMongoDBError=╭─「 🔴 DATABASE ERROR 」
+│ ❌ Failed to connect to MongoDB:
+│
+%1
+╰───────────────
+
+indexController.connectingMySQL=╭─「 🗄️ DATABASE 」
+│ 🔄 Connecting to SQLite database...
+╰───────────────
+
+indexController.connectMySQLSuccess=╭─「 🟢 DATABASE ONLINE 」
+│ ✅ SQLite connected successfully.
+╰───────────────
+
+indexController.connectMySQLError=╭─「 🔴 DATABASE ERROR 」
+│ ❌ Failed to connect to SQLite database:
+│
+%1
+╰───────────────
+
+updater.js
+
+updater.updateTooFast=╭─「 ⏳ UPDATE COOLDOWN 」
+│ Please wait before updating again.
+│
+│ ⏱️ Remaining: %1 minutes %2 seconds
+╰───────────────
+
+updater.latestVersion=╭─「 ✅ UP TO DATE 」
+│ You are already using the latest version.
+╰───────────────
+
+updater.cantFindVersion=╭─「 ❌ VERSION ERROR 」
+│ Unknown bot version: %1
+│
+╰─➤ 📦 Please verify package.json.
+╰───────────────
+
+updater.newVersions=╭─「 🔔 UPDATE FOUND 」
+│ 📦 %1 new version(s) found.
+│
+│ 🔄 Starting update process...
+╰───────────────
+
+updater.updateSuccess=╭─「 ✅ UPDATE COMPLETE 」
+│ Bot source updated successfully%1
+╰───────────────
+
+updater.configChanged=╭─「 ⚙️ CONFIGURATION 」
+│ ⚠️ %1 has been modified.
+│
+│ 🔍 Please review config.json.
+╰───────────────
+
+updater.installingPackages=╭─「 📦 DEPENDENCIES 」
+│ 🔄 Installing bot dependencies...
+╰───────────────
+
+updater.installSuccess=╭─「 ✅ DEPENDENCIES READY 」
+│ Dependencies installed successfully.
+│
+╰─➤ 🔄 Restart the bot to apply changes.
+╰───────────────
+
+updater.backupSuccess=╭─「 💾 BACKUP 」
+│ Modified files have been backed up.
+│
+╰─➤ 📂 Location: %1
+╰───────────────
+
+updater.restartToApply=│ 🔄 Restart the bot to apply the new version.
+
+updater.skipFile=╭─「 ⏭️ UPDATE SKIPPED 」
+│ A newer version of %1 is available,
+│ but this file was skipped.
+│
+│ 🏷️ Skip marker: %2
+╰───────────────
+
+dashboard/routes/verifyfbid.js
+
+verifyfbid.sendCode=╭─「 🔐 VERIFICATION CODE 」
+│ Your verification code:
+│
+│ 🔢 %1
+│
+│ ⏱️ Valid for: %2 minutes
+╰───────────────
+
+utils.js
+
+utils.errorOccurred=╭─「 ❌ ERROR 」
+│ An unexpected error occurred.
+│
+%1
+╰───────────────
+
+for command
+
+command.restartedBot=╭─「 🔄 RESTART 」
+│ ✅ Bot restarted successfully.
+╰───────────────
+
+dashboard/app.js
+
+app.googleApiRefreshTokenExpired=╭─「 🔑 GOOGLE API 」
+│ ⚠️ Google API refresh token has expired
+│ or has been revoked.
+│
+╰─➤ 🌐 Get a new token:
+https://developers.google.com/oauthplayground/
+╰───────────────
+
+app.tooManyRequests=╭─「 🚦 RATE LIMIT 」
+│ ⚠️ Too many requests detected.
+│
+│ ⏳ Please try again later.
+╰───────────────
+
+app.notPermissionChangeFbstate=╭─「 🔒 ACCESS DENIED 」
+│ You don't have permission to change
+│ the Facebook state.
+╰───────────────
+
+app.notFoundFbstate=╭─「 📄 FBSTATE REQUIRED 」
+│ Please provide a valid fbstate.
+╰───────────────
+
+app.changedFbstateSuccess=╭─「 ✅ FBSTATE UPDATED 」
+│ Facebook state changed successfully.
+╰───────────────
+
+app.serverError=╭─「 🔴 SERVER ERROR 」
+│ An internal server error occurred.
+│
+│ 🔄 Please try again later.
+╰───────────────
+
+ROLE LABELS
+
+role.1=👑 ADMIN
+role.2=🛡️ BOT ADMIN
+role.3=💎 BOT PREMIUM
+role.4=⚡ BOT DEV
+role.unknown=👤 USER
