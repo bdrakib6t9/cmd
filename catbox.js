@@ -12,24 +12,13 @@ const CATBOX_API =
 const LITTERBOX_API =
   "https://litterbox.catbox.moe/resources/internals/api.php";
 
-
-// ═══════════════════════════════════════════════
-// STORE
-// ═══════════════════════════════════════════════
-
 function ensureStore() {
   if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, {
-      recursive: true
-    });
+    fs.mkdirSync(DATA_DIR, { recursive: true });
   }
 
   if (!fs.existsSync(STORE_FILE)) {
-    fs.writeFileSync(
-      STORE_FILE,
-      "[]",
-      "utf8"
-    );
+    fs.writeFileSync(STORE_FILE, "[]", "utf8");
   }
 }
 
@@ -38,21 +27,11 @@ function loadStore() {
 
   try {
     const data = JSON.parse(
-      fs.readFileSync(
-        STORE_FILE,
-        "utf8"
-      )
+      fs.readFileSync(STORE_FILE, "utf8")
     );
 
-    return Array.isArray(data)
-      ? data
-      : [];
-  } catch (error) {
-    console.error(
-      "[CATBOX STORE READ]",
-      error
-    );
-
+    return Array.isArray(data) ? data : [];
+  } catch {
     return [];
   }
 }
@@ -62,102 +41,53 @@ function saveStore(data) {
 
   fs.writeFileSync(
     STORE_FILE,
-    JSON.stringify(
-      data,
-      null,
-      2
-    ),
+    JSON.stringify(data, null, 2),
     "utf8"
   );
 }
 
-
-// ═══════════════════════════════════════════════
-// SIZE
-// ═══════════════════════════════════════════════
-
 function formatBytes(bytes) {
-  if (!bytes) {
-    return "0 B";
-  }
+  if (!bytes) return "0 B";
 
-  const units = [
-    "B",
-    "KB",
-    "MB",
-    "GB"
-  ];
+  const units = ["B", "KB", "MB", "GB"];
 
   const index = Math.min(
-    Math.floor(
-      Math.log(bytes) /
-      Math.log(1024)
-    ),
+    Math.floor(Math.log(bytes) / Math.log(1024)),
     units.length - 1
   );
 
   return (
-    (
-      bytes /
-      Math.pow(1024, index)
-    ).toFixed(2) +
+    (bytes / Math.pow(1024, index)).toFixed(2) +
     " " +
     units[index]
   );
 }
 
-
-// ═══════════════════════════════════════════════
-// EMOJI
-// ═══════════════════════════════════════════════
-
 function getEmoji(type) {
-  type = String(
-    type || ""
-  ).toLowerCase();
+  type = String(type || "").toLowerCase();
 
   if (
     type.includes("photo") ||
     type.includes("image")
-  ) {
-    return "🖼️";
-  }
+  ) return "🖼️";
 
-  if (
-    type.includes("gif")
-  ) {
-    return "🎞️";
-  }
+  if (type.includes("gif")) return "🎞️";
 
   if (
     type.includes("video") ||
     type.includes("animated")
-  ) {
-    return "🎬";
-  }
+  ) return "🎬";
 
   if (
     type.includes("audio") ||
     type.includes("music")
-  ) {
-    return "🎵";
-  }
+  ) return "🎵";
 
   return "📁";
 }
 
-
-// ═══════════════════════════════════════════════
-// EXTENSION
-// ═══════════════════════════════════════════════
-
-function getExtension(
-  contentType,
-  mediaType
-) {
-  contentType = String(
-    contentType || ""
-  )
+function getExtension(contentType, mediaType) {
+  contentType = String(contentType || "")
     .split(";")[0]
     .trim()
     .toLowerCase();
@@ -194,45 +124,80 @@ function getExtension(
     return map[contentType];
   }
 
-  mediaType = String(
-    mediaType || ""
-  ).toLowerCase();
+  mediaType = String(mediaType || "").toLowerCase();
 
   if (
     mediaType.includes("photo") ||
     mediaType.includes("image")
-  ) {
-    return "jpg";
-  }
+  ) return "jpg";
 
-  if (
-    mediaType.includes("gif")
-  ) {
-    return "gif";
-  }
-
-  if (
-    mediaType.includes("video")
-  ) {
-    return "mp4";
-  }
+  if (mediaType.includes("gif")) return "gif";
+  if (mediaType.includes("video")) return "mp4";
 
   if (
     mediaType.includes("audio") ||
     mediaType.includes("music")
-  ) {
-    return "mp3";
-  }
+  ) return "mp3";
 
   return "bin";
 }
 
 
 // ═══════════════════════════════════════════════
-// UPLOAD → CATBOX
+// MESSAGE EDIT
 // ═══════════════════════════════════════════════
 
-async function uploadToCatbox(
+async function editMessage(api, text, messageID) {
+  try {
+    if (
+      messageID &&
+      typeof api.editMessage === "function"
+    ) {
+      await api.editMessage(
+        text,
+        messageID
+      );
+
+      return true;
+    }
+  } catch (error) {
+    console.error(
+      "[CATBOX EDIT ERROR]",
+      error.message
+    );
+  }
+
+  return false;
+}
+
+
+// ═══════════════════════════════════════════════
+// DELETE MESSAGE
+// ═══════════════════════════════════════════════
+
+async function deleteMessage(api, messageID) {
+  if (!messageID) return;
+
+  try {
+    if (
+      typeof api.unsendMessage === "function"
+    ) {
+      await api.unsendMessage(messageID);
+    }
+  } catch (error) {
+    console.error(
+      "[CATBOX DELETE ERROR]",
+      error.message
+    );
+  }
+}
+
+
+// ═══════════════════════════════════════════════
+// CATBOX UPLOAD
+// ═══════════════════════════════════════════════
+
+async function uploadCatbox(
   buffer,
   filename,
   contentType
@@ -253,38 +218,27 @@ async function uploadToCatbox(
     }
   );
 
-  const response =
-    await axios.post(
-      CATBOX_API,
-      form,
-      {
-        headers: {
-          ...form.getHeaders(),
+  const response = await axios.post(
+    CATBOX_API,
+    form,
+    {
+      headers: {
+        ...form.getHeaders(),
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "text/plain,*/*"
+      },
 
-          "User-Agent":
-            "Mozilla/5.0",
+      timeout: 180000,
 
-          "Accept":
-            "text/plain,*/*"
-        },
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
 
-        timeout: 180000,
-
-        maxContentLength:
-          Infinity,
-
-        maxBodyLength:
-          Infinity,
-
-        validateStatus:
-          () => true
-      }
-    );
+      validateStatus: () => true
+    }
+  );
 
   const result =
-    String(
-      response.data || ""
-    ).trim();
+    String(response.data || "").trim();
 
   console.log(
     "[CATBOX RESPONSE]",
@@ -302,9 +256,7 @@ async function uploadToCatbox(
   }
 
   if (
-    !/^https?:\/\/.+/i.test(
-      result
-    )
+    !/^https?:\/\/.+/i.test(result)
   ) {
     throw new Error(
       result ||
@@ -317,10 +269,10 @@ async function uploadToCatbox(
 
 
 // ═══════════════════════════════════════════════
-// UPLOAD → LITTERBOX FALLBACK
+// LITTERBOX FALLBACK
 // ═══════════════════════════════════════════════
 
-async function uploadToLitterbox(
+async function uploadLitterbox(
   buffer,
   filename,
   contentType
@@ -332,15 +284,6 @@ async function uploadToLitterbox(
     "fileupload"
   );
 
-  /*
-   * Litterbox temporary storage.
-   *
-   * Allowed:
-   * 1h
-   * 12h
-   * 24h
-   * 72h
-   */
   form.append(
     "time",
     "72h"
@@ -355,38 +298,27 @@ async function uploadToLitterbox(
     }
   );
 
-  const response =
-    await axios.post(
-      LITTERBOX_API,
-      form,
-      {
-        headers: {
-          ...form.getHeaders(),
+  const response = await axios.post(
+    LITTERBOX_API,
+    form,
+    {
+      headers: {
+        ...form.getHeaders(),
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "text/plain,*/*"
+      },
 
-          "User-Agent":
-            "Mozilla/5.0",
+      timeout: 180000,
 
-          "Accept":
-            "text/plain,*/*"
-        },
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
 
-        timeout: 180000,
-
-        maxContentLength:
-          Infinity,
-
-        maxBodyLength:
-          Infinity,
-
-        validateStatus:
-          () => true
-      }
-    );
+      validateStatus: () => true
+    }
+  );
 
   const result =
-    String(
-      response.data || ""
-    ).trim();
+    String(response.data || "").trim();
 
   console.log(
     "[LITTERBOX RESPONSE]",
@@ -404,9 +336,7 @@ async function uploadToLitterbox(
   }
 
   if (
-    !/^https?:\/\/.+/i.test(
-      result
-    )
+    !/^https?:\/\/.+/i.test(result)
   ) {
     throw new Error(
       result ||
@@ -427,48 +357,45 @@ async function downloadSavedFile(
   event,
   item
 ) {
-  const send = msg =>
-    api.sendMessage(
-      msg,
-      event.threadID,
-      event.messageID
-    );
-
   let tempFile = null;
 
   try {
+    const statusMessage =
+      await api.sendMessage(
+        `⏳ #${item.id} download করছি...`,
+        event.threadID
+      );
 
-    await send(
-      `⏳ #${item.id} download করছি...`
+    try {
+      if (
+        statusMessage &&
+        statusMessage.messageID
+      ) {
+        await editMessage(
+          api,
+          `⏳ #${item.id}\n\n` +
+          `📥 File download হচ্ছে...`,
+          statusMessage.messageID
+        );
+      }
+    } catch {}
+
+    const response = await axios.get(
+      item.url,
+      {
+        responseType: "arraybuffer",
+        timeout: 180000,
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+
+        headers: {
+          "User-Agent": "Mozilla/5.0"
+        }
+      }
     );
 
-    const response =
-      await axios.get(
-        item.url,
-        {
-          responseType:
-            "arraybuffer",
-
-          timeout:
-            180000,
-
-          maxContentLength:
-            Infinity,
-
-          maxBodyLength:
-            Infinity,
-
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0"
-          }
-        }
-      );
-
     const buffer =
-      Buffer.from(
-        response.data
-      );
+      Buffer.from(response.data);
 
     if (!buffer.length) {
       throw new Error(
@@ -480,11 +407,10 @@ async function downloadSavedFile(
       item.filename ||
       `catbox_${item.id}.${item.extension || "bin"}`;
 
-    filename =
-      filename.replace(
-        /[<>:"/\\|?*\x00-\x1F]/g,
-        "_"
-      );
+    filename = filename.replace(
+      /[<>:"/\\|?*\x00-\x1F]/g,
+      "_"
+    );
 
     tempFile = path.join(
       DATA_DIR,
@@ -499,26 +425,32 @@ async function downloadSavedFile(
     await api.sendMessage(
       {
         body:
-          `🐱 ${item.host || "CATBOX"} #${item.id}\n\n` +
+          `🐱 ${item.host || "Catbox"} #${item.id}\n\n` +
           `${getEmoji(item.type)} Type: ${item.type || "file"}\n` +
           `📦 Size: ${formatBytes(buffer.length)}\n` +
           `🌐 Host: ${item.host || "Catbox"}\n\n` +
           `🔗 ${item.url}`,
 
         attachment:
-          fs.createReadStream(
-            tempFile
-          )
+          fs.createReadStream(tempFile)
       },
 
-      event.threadID,
-      event.messageID
+      event.threadID
     );
 
-  } catch (error) {
+    if (
+      statusMessage &&
+      statusMessage.messageID
+    ) {
+      await deleteMessage(
+        api,
+        statusMessage.messageID
+      );
+    }
 
+  } catch (error) {
     console.error(
-      "[CATBOX DOWNLOAD]",
+      "[CATBOX DOWNLOAD ERROR]",
       error.response?.data ||
       error.message ||
       error
@@ -533,25 +465,20 @@ async function downloadSavedFile(
       typeof reason !== "string"
     ) {
       reason =
-        JSON.stringify(
-          reason
-        );
+        JSON.stringify(reason);
     }
 
-    return send(
+    return api.sendMessage(
       `❌ DOWNLOAD FAILED\n\n` +
       `📛 ${reason}\n\n` +
-      `💡 যদি এটি Litterbox link হয়,\n` +
-      `file-এর 72h expiry শেষ হয়ে যেতে পারে।`
+      `💡 Litterbox link হলে 72h expiry শেষ হয়ে যেতে পারে।`,
+      event.threadID
     );
 
   } finally {
-
     if (tempFile) {
       try {
-        fs.unlinkSync(
-          tempFile
-        );
+        fs.unlinkSync(tempFile);
       } catch {}
     }
   }
@@ -559,27 +486,18 @@ async function downloadSavedFile(
 
 
 // ═══════════════════════════════════════════════
-// LIST
+// SHOW LIST
 // ═══════════════════════════════════════════════
 
-function showList(
-  api,
-  event
-) {
-  const send = msg =>
-    api.sendMessage(
-      msg,
-      event.threadID,
-      event.messageID
-    );
-
-  const store =
-    loadStore();
+async function showList(api, event) {
+  const store = loadStore();
 
   if (!store.length) {
-    return send(
+    return api.sendMessage(
       `🐱 CATBOX LIST\n\n` +
-      `📭 Store-এ কোনো file নেই।`
+      `📭 Store-এ কোনো file নেই।`,
+      event.threadID,
+      event.messageID
     );
   }
 
@@ -588,90 +506,70 @@ function showList(
     `     🐱 CATBOX LIST\n` +
     `╰────────────────╯\n\n`;
 
-  store.forEach(
-    (item, index) => {
+  store.forEach((item, index) => {
+    text +=
+      `${index + 1}. ` +
+      `${getEmoji(item.type)} ` +
+      `${item.type || "file"}\n` +
 
+      `   🌐 ${item.host || "Catbox"}\n` +
+
+      `   📦 ${item.size || "Unknown"}\n` +
+
+      `   🔗 ${item.url}\n`;
+
+    if (
+      item.host === "Litterbox"
+    ) {
       text +=
-        `${index + 1}. ` +
-        `${getEmoji(item.type)} ` +
-        `${item.type || "file"}\n` +
-
-        `   🌐 ${item.host || "Catbox"}\n` +
-
-        `   🔗 ${item.url}\n` +
-
-        `   📦 ${item.size || "Unknown"}\n`;
-
-      if (
-        item.host ===
-        "Litterbox"
-      ) {
-        text +=
-          `   ⏳ Expires: 72h\n`;
-      }
-
-      text += "\n";
+        `   ⏳ Expiry: 72 hours\n`;
     }
-  );
+
+    text += "\n";
+  });
 
   text +=
     `━━━━━━━━━━━━━━━━━━\n` +
-    `📌 এই message-এ reply করে শুধু number পাঠাও।\n` +
-    `Example: 2\n\n` +
-    `অথবা:\n` +
-    `catbox 2`;
+    `📌 এই message-এ reply করে number পাঠাও।\n` +
+    `Example: 1`;
 
-  return send(
-    text
+  return api.sendMessage(
+    text,
+    event.threadID,
+    event.messageID
   );
 }
 
 
 // ═══════════════════════════════════════════════
-// NUMBER
+// GET NUMBER
 // ═══════════════════════════════════════════════
 
-function getNumber(
-  event,
-  args
-) {
-
-  // catbox 3
+function getNumber(event, args) {
   if (
     args &&
     args.length
   ) {
     const n =
-      parseInt(
-        args[0]
-      );
+      parseInt(args[0]);
 
-    if (
-      !isNaN(n)
-    ) {
+    if (!isNaN(n)) {
       return n;
     }
   }
 
-  // list message reply করে 3
   if (
     event.messageReply
   ) {
-
     const body =
       String(
-        event.messageReply.body ||
-        ""
+        event.messageReply.body || ""
       ).trim();
 
     if (
-      /^\d+$/.test(
-        body
-      )
+      /^\d+$/.test(body)
     ) {
-      return parseInt(
-        body
-      );
+      return parseInt(body);
     }
   }
 
@@ -686,25 +584,19 @@ function getNumber(
 module.exports = {
 
   config: {
-
     name: "catbox",
-
-    version: "5.0.0",
-
+    version: "6.0.0",
     author: "Rakib",
-
     countDown: 5,
-
     role: 0,
 
     shortDescription:
-      "Catbox uploader + store",
+      "Catbox upload and file store",
 
     longDescription:
-      "Upload media to Catbox with Litterbox fallback and manage saved links.",
+      "Upload media to Catbox with Litterbox fallback, store links and download by serial.",
 
-    category:
-      "utility",
+    category: "utility",
 
     guide:
       "{pn}catbox\n" +
@@ -714,486 +606,477 @@ module.exports = {
   },
 
 
-  onStart:
-    async function ({
-      api,
-      event,
-      args
-    }) {
+  onStart: async function ({
+    api,
+    event,
+    args
+  }) {
 
-      const send = msg =>
-        api.sendMessage(
-          msg,
+    const command =
+      String(
+        args?.[0] || ""
+      ).toLowerCase();
+
+
+    // ═══════════════════════════════════════════
+    // LIST
+    // ═══════════════════════════════════════════
+
+    if (
+      command === "list"
+    ) {
+      return showList(
+        api,
+        event
+      );
+    }
+
+
+    // ═══════════════════════════════════════════
+    // CLEAR
+    // ═══════════════════════════════════════════
+
+    if (
+      command === "clear"
+    ) {
+      const store =
+        loadStore();
+
+      saveStore([]);
+
+      return api.sendMessage(
+        `✅ CATBOX STORE CLEARED\n\n` +
+        `🗑️ Deleted: ${store.length} files`,
+        event.threadID,
+        event.messageID
+      );
+    }
+
+
+    // ═══════════════════════════════════════════
+    // DOWNLOAD NUMBER
+    // ═══════════════════════════════════════════
+
+    const number =
+      getNumber(
+        event,
+        args
+      );
+
+    if (
+      number !== null
+    ) {
+      const store =
+        loadStore();
+
+      if (!store.length) {
+        return api.sendMessage(
+          "📭 Catbox store empty!",
           event.threadID,
           event.messageID
         );
+      }
+
+      if (
+        number < 1 ||
+        number > store.length
+      ) {
+        return api.sendMessage(
+          `❌ Invalid number!\n\n` +
+          `📌 Available: 1 - ${store.length}`,
+          event.threadID,
+          event.messageID
+        );
+      }
+
+      /*
+       * যদি list message-এ reply করে number দেওয়া হয়,
+       * তাহলে list message delete করে দিচ্ছি।
+       */
+      if (
+        event.messageReply &&
+        event.messageReply.messageID
+      ) {
+        await deleteMessage(
+          api,
+          event.messageReply.messageID
+        );
+      }
+
+      const item =
+        store[number - 1];
+
+      return downloadSavedFile(
+        api,
+        event,
+        item
+      );
+    }
+
+
+    // ═══════════════════════════════════════════
+    // UPLOAD
+    // ═══════════════════════════════════════════
+
+    if (
+      !event.messageReply
+    ) {
+      return api.sendMessage(
+        `🐱 CATBOX\n\n` +
+        `📤 Upload:\n` +
+        `Media-তে reply করে catbox\n\n` +
+
+        `📋 List:\n` +
+        `catbox list\n\n` +
+
+        `📥 Download:\n` +
+        `catbox 1\n` +
+        `অথবা list message-এ reply করে 1\n\n` +
+
+        `🗑️ Clear:\n` +
+        `catbox clear`,
+        event.threadID,
+        event.messageID
+      );
+    }
+
+
+    const attachments =
+      event.messageReply.attachments || [];
+
+    if (
+      !attachments.length
+    ) {
+      return api.sendMessage(
+        "❌ Reply করা message-এ attachment নেই!",
+        event.threadID,
+        event.messageID
+      );
+    }
+
+
+    const attachment =
+      attachments.find(
+        item =>
+          item &&
+          item.url
+      );
+
+    if (
+      !attachment
+    ) {
+      return api.sendMessage(
+        "❌ Attachment URL পাওয়া যায়নি!",
+        event.threadID,
+        event.messageID
+      );
+    }
+
+
+    const mediaType =
+      String(
+        attachment.type ||
+        "file"
+      ).toLowerCase();
+
+    const emoji =
+      getEmoji(
+        mediaType
+      );
+
+
+    // ═══════════════════════════════════════════
+    // ONE STATUS MESSAGE
+    // ═══════════════════════════════════════════
+
+    const status =
+      await api.sendMessage(
+        `${emoji} Media detected!\n` +
+        `⏳ Download হচ্ছে...`,
+        event.threadID
+      );
+
+    const statusID =
+      status?.messageID;
+
+
+    try {
+
+      // ─────────────────────────────────────────
+      // DOWNLOAD FACEBOOK MEDIA
+      // ─────────────────────────────────────────
+
+      const response =
+        await axios.get(
+          attachment.url,
+          {
+            responseType:
+              "arraybuffer",
+
+            timeout:
+              120000,
+
+            maxContentLength:
+              Infinity,
+
+            maxBodyLength:
+              Infinity,
+
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0"
+            }
+          }
+        );
+
+      const buffer =
+        Buffer.from(
+          response.data
+        );
+
+      if (
+        !buffer.length
+      ) {
+        throw new Error(
+          "Downloaded file is empty"
+        );
+      }
+
+
+      let contentType =
+        response.headers[
+          "content-type"
+        ] ||
+        "application/octet-stream";
+
+      contentType =
+        String(
+          contentType
+        )
+          .split(";")[0]
+          .trim()
+          .toLowerCase();
+
+
+      if (
+        contentType ===
+        "text/html"
+      ) {
+        contentType =
+          "application/octet-stream";
+      }
+
+
+      const extension =
+        getExtension(
+          contentType,
+          mediaType
+        );
+
+      const filename =
+        `facebook_${Date.now()}.${extension}`;
+
+
+      await editMessage(
+        api,
+
+        `${emoji} Media detected!\n` +
+        `📦 Size: ${formatBytes(buffer.length)}\n` +
+        `⏳ Catbox-এ upload হচ্ছে...`,
+
+        statusID
+      );
+
+
+      // ═══════════════════════════════════════
+      // CATBOX → LITTERBOX
+      // ═══════════════════════════════════════
+
+      let url;
+      let host;
 
       try {
 
-        const command =
-          String(
-            args?.[0] || ""
-          ).toLowerCase();
-
-
-        // ═══════════════════════════════════════
-        // LIST
-        // ═══════════════════════════════════════
-
-        if (
-          command === "list"
-        ) {
-          return showList(
-            api,
-            event
-          );
-        }
-
-
-        // ═══════════════════════════════════════
-        // CLEAR
-        // ═══════════════════════════════════════
-
-        if (
-          command === "clear"
-        ) {
-
-          const store =
-            loadStore();
-
-          if (
-            !store.length
-          ) {
-            return send(
-              "📭 Catbox store already empty!"
-            );
-          }
-
-          saveStore([]);
-
-          return send(
-            `✅ CATBOX STORE CLEARED\n\n` +
-            `🗑️ Deleted: ${store.length} files`
-          );
-        }
-
-
-        // ═══════════════════════════════════════
-        // DOWNLOAD NUMBER
-        // ═══════════════════════════════════════
-
-        const number =
-          getNumber(
-            event,
-            args
-          );
-
-        if (
-          number !== null
-        ) {
-
-          const store =
-            loadStore();
-
-          if (
-            !store.length
-          ) {
-            return send(
-              "📭 Catbox store empty!"
-            );
-          }
-
-          if (
-            number < 1 ||
-            number > store.length
-          ) {
-            return send(
-              `❌ Invalid number!\n\n` +
-              `📌 Available: 1 - ${store.length}`
-            );
-          }
-
-          const item =
-            store[
-              number - 1
-            ];
-
-          return downloadSavedFile(
-            api,
-            event,
-            item
-          );
-        }
-
-
-        // ═══════════════════════════════════════
-        // CHECK REPLY
-        // ═══════════════════════════════════════
-
-        if (
-          !event.messageReply
-        ) {
-
-          return send(
-            `🐱 CATBOX\n\n` +
-
-            `📤 Upload:\n` +
-            `Media-তে reply করে catbox\n\n` +
-
-            `📋 List:\n` +
-            `catbox list\n\n` +
-
-            `📥 Download:\n` +
-            `catbox 1\n` +
-            `অথবা list message-এ reply করে 1\n\n` +
-
-            `🗑️ Clear:\n` +
-            `catbox clear`
-          );
-        }
-
-
-        // ═══════════════════════════════════════
-        // ATTACHMENT
-        // ═══════════════════════════════════════
-
-        const attachments =
-          event.messageReply
-            .attachments || [];
-
-        if (
-          !attachments.length
-        ) {
-          return send(
-            "❌ Reply করা message-এ attachment নেই!"
-          );
-        }
-
-        const attachment =
-          attachments.find(
-            item =>
-              item &&
-              item.url
-          );
-
-        if (
-          !attachment
-        ) {
-          return send(
-            "❌ Attachment URL পাওয়া যায়নি!"
-          );
-        }
-
-
-        const mediaType =
-          String(
-            attachment.type ||
-            "file"
-          ).toLowerCase();
-
-        const emoji =
-          getEmoji(
-            mediaType
-          );
-
-
-        // ═══════════════════════════════════════
-        // DOWNLOAD FACEBOOK FILE
-        // ═══════════════════════════════════════
-
-        await send(
-          `${emoji} Media detected!\n` +
-          `⏳ Media download করছি...`
-        );
-
-        const response =
-          await axios.get(
-            attachment.url,
-            {
-              responseType:
-                "arraybuffer",
-
-              timeout:
-                120000,
-
-              maxContentLength:
-                Infinity,
-
-              maxBodyLength:
-                Infinity,
-
-              headers: {
-                "User-Agent":
-                  "Mozilla/5.0"
-              }
-            }
-          );
-
-        const buffer =
-          Buffer.from(
-            response.data
-          );
-
-        if (
-          !buffer.length
-        ) {
-          throw new Error(
-            "Downloaded file is empty"
-          );
-        }
-
-
-        // ═══════════════════════════════════════
-        // CONTENT TYPE
-        // ═══════════════════════════════════════
-
-        let contentType =
-          response.headers[
-            "content-type"
-          ] ||
-          "application/octet-stream";
-
-        contentType =
-          String(
+        url =
+          await uploadCatbox(
+            buffer,
+            filename,
             contentType
-          )
-            .split(";")[0]
-            .trim()
-            .toLowerCase();
-
-        if (
-          contentType ===
-          "text/html"
-        ) {
-          contentType =
-            "application/octet-stream";
-        }
-
-
-        // ═══════════════════════════════════════
-        // FILENAME
-        // ═══════════════════════════════════════
-
-        const extension =
-          getExtension(
-            contentType,
-            mediaType
           );
 
-        const filename =
-          `facebook_${Date.now()}.${extension}`;
+        host =
+          "Catbox";
 
-
-        // ═══════════════════════════════════════
-        // UPLOAD
-        // ═══════════════════════════════════════
-
-        let url;
-        let host;
-
-        // ───────────────────────────────────────
-        // TRY CATBOX
-        // ───────────────────────────────────────
-
-        try {
-
-          await send(
-            `${emoji} Catbox-এ upload করছি...`
-          );
-
-          url =
-            await uploadToCatbox(
-              buffer,
-              filename,
-              contentType
-            );
-
-          host =
-            "Catbox";
-
-        } catch (catboxError) {
-
-          console.error(
-            "[CATBOX FAILED]",
-            catboxError.message
-          );
-
-          // ─────────────────────────────────────
-          // FALLBACK LITTERBOX
-          // ─────────────────────────────────────
-
-          await send(
-            `⚠️ Catbox upload failed!\n\n` +
-            `📛 ${catboxError.message}\n\n` +
-            `🔄 Litterbox fallback দিয়ে চেষ্টা করছি...`
-          );
-
-          try {
-
-            url =
-              await uploadToLitterbox(
-                buffer,
-                filename,
-                contentType
-              );
-
-            host =
-              "Litterbox";
-
-          } catch (litterError) {
-
-            console.error(
-              "[LITTERBOX FAILED]",
-              litterError.message
-            );
-
-            throw new Error(
-              `Catbox: ${catboxError.message}\n` +
-              `Litterbox: ${litterError.message}`
-            );
-          }
-        }
-
-
-        // ═══════════════════════════════════════
-        // DUPLICATE
-        // ═══════════════════════════════════════
-
-        const store =
-          loadStore();
-
-        const duplicate =
-          store.find(
-            item =>
-              item.url === url
-          );
-
-        if (
-          duplicate
-        ) {
-
-          return send(
-            `╭────────────────╮\n` +
-            `     🐱 ${host.toUpperCase()}\n` +
-            `╰────────────────╯\n\n` +
-
-            `${emoji} Type: ${mediaType}\n` +
-            `📦 Size: ${formatBytes(buffer.length)}\n` +
-            `🔢 Serial: #${duplicate.id}\n\n` +
-
-            `🔗 ${url}\n\n` +
-
-            `♻️ এই link আগে থেকেই store-এ আছে।`
-          );
-        }
-
-
-        // ═══════════════════════════════════════
-        // SAVE
-        // ═══════════════════════════════════════
-
-        const item = {
-
-          id:
-            store.length + 1,
-
-          url,
-
-          host,
-
-          type:
-            mediaType,
-
-          size:
-            formatBytes(
-              buffer.length
-            ),
-
-          bytes:
-            buffer.length,
-
-          filename,
-
-          extension,
-
-          contentType,
-
-          uploadedAt:
-            new Date().toISOString()
-        };
-
-
-        store.push(
-          item
-        );
-
-        saveStore(
-          store
-        );
-
-
-        // ═══════════════════════════════════════
-        // SUCCESS
-        // ═══════════════════════════════════════
-
-        let expiryText =
-          "";
-
-        if (
-          host ===
-          "Litterbox"
-        ) {
-          expiryText =
-            `\n⏳ Expiry: 72 hours`;
-        }
-
-        return send(
-          `╭────────────────╮\n` +
-          `     🐱 ${host.toUpperCase()}\n` +
-          `╰────────────────╯\n\n` +
-
-          `${emoji} Type: ${mediaType}\n` +
-          `📦 Size: ${formatBytes(buffer.length)}\n` +
-          `🔢 Serial: #${item.id}\n` +
-          `🌐 Host: ${host}` +
-          expiryText +
-          `\n\n` +
-
-          `🔗 ${url}\n\n` +
-
-          `💾 Store-এ save হয়েছে!\n` +
-          `✅ Upload Successful!`
-        );
-
-      } catch (error) {
+      } catch (catboxError) {
 
         console.error(
-          "[CATBOX FINAL ERROR]",
-          error.response?.data ||
-          error.message ||
-          error
+          "[CATBOX FAILED]",
+          catboxError.message
         );
 
-        let reason =
-          error.response?.data ||
-          error.message ||
-          "Unknown error";
+        await editMessage(
+          api,
 
-        if (
-          typeof reason !==
-          "string"
-        ) {
-          reason =
-            JSON.stringify(
-              reason
-            );
-        }
+          `⚠️ Catbox upload failed!\n\n` +
+          `📛 ${catboxError.message}\n\n` +
+          `🔄 Litterbox fallback...`,
 
-        return send(
-          `❌ UPLOAD FAILED\n\n` +
-          `📛 Error:\n${reason}\n\n` +
-          `🔄 আবার চেষ্টা করো।`
+          statusID
         );
+
+        url =
+          await uploadLitterbox(
+            buffer,
+            filename,
+            contentType
+          );
+
+        host =
+          "Litterbox";
       }
+
+
+      // ═══════════════════════════════════════
+      // STORE
+      // ═══════════════════════════════════════
+
+      const store =
+        loadStore();
+
+      const duplicate =
+        store.find(
+          item =>
+            item.url === url
+        );
+
+      if (
+        duplicate
+      ) {
+
+        await editMessage(
+          api,
+
+          `♻️ Already stored!\n\n` +
+          `🌐 ${host}\n` +
+          `🔢 Serial: #${duplicate.id}\n\n` +
+          `🔗 ${url}`,
+
+          statusID
+        );
+
+        return;
+      }
+
+
+      const item = {
+
+        id:
+          store.length + 1,
+
+        url,
+
+        host,
+
+        type:
+          mediaType,
+
+        size:
+          formatBytes(
+            buffer.length
+          ),
+
+        bytes:
+          buffer.length,
+
+        filename,
+
+        extension,
+
+        contentType,
+
+        uploadedAt:
+          new Date().toISOString()
+      };
+
+
+      store.push(
+        item
+      );
+
+      saveStore(
+        store
+      );
+
+
+      // ═══════════════════════════════════════
+      // SUCCESS → EDIT SAME MESSAGE
+      // ═══════════════════════════════════════
+
+      let expiry = "";
+
+      if (
+        host ===
+        "Litterbox"
+      ) {
+        expiry =
+          `\n⏳ Expiry: 72 hours`;
+      }
+
+      await editMessage(
+        api,
+
+        `╭────────────────╮\n` +
+        `     🐱 ${host.toUpperCase()}\n` +
+        `╰────────────────╯\n\n` +
+
+        `${emoji} Type: ${mediaType}\n` +
+        `📦 Size: ${formatBytes(buffer.length)}\n` +
+        `🔢 Serial: #${item.id}\n` +
+        `🌐 Host: ${host}` +
+        expiry +
+        `\n\n` +
+
+        `🔗 ${url}\n\n` +
+
+        `💾 Store-এ save হয়েছে!\n` +
+        `✅ Upload Successful!`,
+
+        statusID
+      );
+
+    } catch (error) {
+
+      console.error(
+        "[CATBOX FINAL ERROR]",
+        error.response?.data ||
+        error.message ||
+        error
+      );
+
+      let reason =
+        error.response?.data ||
+        error.message ||
+        "Unknown error";
+
+      if (
+        typeof reason !==
+        "string"
+      ) {
+        reason =
+          JSON.stringify(
+            reason
+          );
+      }
+
+      await editMessage(
+        api,
+
+        `❌ UPLOAD FAILED\n\n` +
+        `📛 Error:\n${reason}\n\n` +
+        `🔄 আবার চেষ্টা করো।`,
+
+        statusID
+      );
     }
+  }
 };
