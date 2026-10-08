@@ -1,46 +1,35 @@
-/**
- * TESSA PRIME BOT
- * Unified Spam Protection + Auto Kick
- * Author: Rakib
- *
- * Kickable roles:
- *   Role 0 = YES
- *   Role 3 = YES
- *
- * Protected roles:
- *   Role 1 = NO
- *   Role 2 = NO
- *   Role 4 = NO
- *   Role 5 = NO
- */
-
 module.exports.config = {
   name: "spamkick",
-  version: "4.1.0",
+  version: "5.0.0",
   author: "Rakib",
-
-  role: {
-    onStart: 1,
-    onChat: 0,
-    onReaction: 1
-  },
-
   usePrefix: true,
 
   description: {
-    en: "Unified spam protection and auto kick system"
+    en: "Advanced spam detection, role protection and auto kick system"
   },
 
   category: "group",
 
   guide: {
     en:
-      "spamkick on\n" +
-      "spamkick off\n" +
-      "spamkick status"
+      "{pn} on\n" +
+      "{pn} off\n" +
+      "{pn} status"
   },
 
-  countDown: 5
+  countDown: 5,
+
+  /*
+   * IMPORTANT:
+   * onStart -> role 1+
+   * onChat  -> everyone
+   * onReaction -> role 1+
+   */
+  role: {
+    onStart: 1,
+    onChat: 0,
+    onReaction: 1
+  }
 };
 
 
@@ -57,22 +46,20 @@ if (!global.antispam) {
 // CONFIG
 // ============================================================
 
-const CONFIG = {
-  FAST_WINDOW: 10 * 1000,
-  FAST_LIMIT: 8,
+const FAST_WINDOW = 10 * 1000;
+const FAST_LIMIT = 8;
 
-  KICK_WINDOW: 80 * 1000,
-  KICK_LIMIT: 15,
+const KICK_WINDOW = 80 * 1000;
+const KICK_LIMIT = 15;
 
-  GROUP_WINDOW: 5 * 60 * 1000,
-  GROUP_LIMIT: 500,
+const GROUP_WINDOW = 5 * 60 * 1000;
+const GROUP_LIMIT = 500;
 
-  CLEANUP_AFTER: 10 * 60 * 1000
-};
+const NOTIFY_COOLDOWN = 60 * 1000;
 
 
 // ============================================================
-// ID
+// HELPERS
 // ============================================================
 
 function normalizeID(id) {
@@ -80,20 +67,22 @@ function normalizeID(id) {
 }
 
 
-// ============================================================
-// THREAD DATA
-// ============================================================
-
 function getThreadData(threadID) {
-  threadID = normalizeID(threadID);
-
   if (!global.antispam.has(threadID)) {
     global.antispam.set(threadID, {
       enabled: true,
+
       users: {},
+
+      /*
+       * Group-wide message timestamps.
+       */
       groupMessages: [],
-      groupAction: false,
-      createdAt: Date.now()
+
+      /*
+       * Prevent notification spam.
+       */
+      notifications: {}
     });
   }
 
@@ -101,342 +90,271 @@ function getThreadData(threadID) {
 }
 
 
-// ============================================================
-// GET ROLE
-//
-// Same priority as handlerEvents.js
-//
-// Role 5 = ownerBot
-// Role 4 = devUsers
-// Role 3 = premiumUsers
-// Role 2 = adminBot
-// Role 1 = group admin
-// Role 0 = normal user
-// ============================================================
+function getRoleName(role) {
+  switch (Number(role)) {
+    case 0:
+      return "Role 0 • Member";
 
-function getUserRole(threadID, senderID) {
-  const id = normalizeID(senderID);
+    case 1:
+      return "Role 1 • Group Admin";
 
-  if (!id)
-    return 0;
+    case 2:
+      return "Role 2 • Bot Admin";
 
-  try {
-    const config = global.GoatBot?.config || {};
+    case 3:
+      return "Role 3 • Premium";
 
-    const adminBot =
-      (config.adminBot || []).map(normalizeID);
+    case 4:
+      return "Role 4 • Developer";
 
-    const devUsers =
-      (config.devUsers || []).map(normalizeID);
+    case 5:
+      return "Role 5 • Owner";
 
-    const premiumUsers =
-      (config.premiumUsers || []).map(normalizeID);
-
-    const ownerBot =
-      (config.ownerBot || []).map(normalizeID);
-
-    const threadData =
-      global.db?.allThreadData?.find(
-        t => normalizeID(t.threadID) === normalizeID(threadID)
-      );
-
-    const adminBox =
-      (threadData?.adminIDs || []).map(normalizeID);
-
-
-    // ROLE 5
-    if (ownerBot.includes(id)) {
-      return 5;
-    }
-
-
-    // ROLE 4
-    if (devUsers.includes(id)) {
-      return 4;
-    }
-
-
-    // ROLE 3
-    if (premiumUsers.includes(id)) {
-
-      const userData =
-        global.db?.allUserData?.find(
-          u => normalizeID(u.userID) === id
-        );
-
-      const expireTime =
-        userData?.data?.premiumExpireTime;
-
-      if (
-        expireTime &&
-        expireTime < Date.now()
-      ) {
-        // Premium expired.
-        // Continue checking lower roles,
-        // exactly like handlerEvents.js.
-      }
-      else {
-        return 3;
-      }
-    }
-
-
-    // ROLE 2
-    if (adminBot.includes(id)) {
-      return 2;
-    }
-
-
-    // ROLE 1
-    if (adminBox.includes(id)) {
-      return 1;
-    }
-
-
-    // ROLE 0
-    return 0;
-
-  }
-  catch (err) {
-
-    console.error(
-      "SpamKick getUserRole error:",
-      err?.message || err
-    );
-
-    return 0;
+    default:
+      return `Role ${role}`;
   }
 }
 
-
-// ============================================================
-// KICK ELIGIBILITY
-//
-// ONLY Role 0 and Role 3 can be kicked.
-//
-// Role 1, 2, 4, 5 are protected.
-// ============================================================
 
 function canKickRole(role) {
   return role === 0 || role === 3;
 }
 
 
-// ============================================================
-// CLEAN USER
-// ============================================================
-
-function cleanupUser(user) {
-
-  if (!user)
-    return null;
-
-  const now = Date.now();
-
-  user.fast =
-    (user.fast || []).filter(
-      t => now - t < CONFIG.FAST_WINDOW
-    );
-
-  user.kick =
-    (user.kick || []).filter(
-      t => now - t < CONFIG.KICK_WINDOW
-    );
-
-  return user;
-}
-
-
-// ============================================================
-// CLEAN THREAD
-// ============================================================
-
-function cleanupThread(threadInfo) {
-
-  const now = Date.now();
-
-  threadInfo.groupMessages =
-    (threadInfo.groupMessages || []).filter(
-      t => now - t < CONFIG.GROUP_WINDOW
-    );
-
-
-  for (const uid of Object.keys(threadInfo.users || {})) {
-
-    const user =
-      cleanupUser(threadInfo.users[uid]);
-
-    if (!user)
-      continue;
-
-    const lastActivity =
-      user.lastActivity || now;
-
-    if (
-      user.fast.length === 0 &&
-      user.kick.length === 0 &&
-      now - lastActivity > CONFIG.CLEANUP_AFTER
-    ) {
-      delete threadInfo.users[uid];
+function getBotID(api) {
+  try {
+    if (typeof api.getCurrentUserID === "function") {
+      return normalizeID(api.getCurrentUserID());
     }
+  } catch (err) {
+    console.error("[SpamKick] getCurrentUserID error:", err.message);
   }
+
+  return "";
 }
 
 
-// ============================================================
-// SEND MESSAGE
-// ============================================================
+/*
+ * Same role priority used by handlerEvents.js
+ */
+function getUserRole(threadData, senderID) {
+  const config = global.GoatBot?.config || {};
 
-async function sendMessage(api, body, threadID) {
+  const adminBot = (config.adminBot || []).map(normalizeID);
+  const devUsers = (config.devUsers || []).map(normalizeID);
+  const premiumUsers = (config.premiumUsers || []).map(normalizeID);
+  const ownerBot = (config.ownerBot || []).map(normalizeID);
 
-  try {
-    return await api.sendMessage(
-      body,
-      threadID
-    );
+  const uid = normalizeID(senderID);
+
+  if (!uid) return 0;
+
+  const adminBox = threadData?.adminIDs || [];
+
+  const groupAdmins = adminBox.map(admin =>
+    normalizeID(
+      typeof admin === "object"
+        ? admin.id
+        : admin
+    )
+  );
+
+
+  // Role 5
+  if (ownerBot.includes(uid)) {
+    return 5;
   }
-  catch (err) {
 
-    console.error(
-      "❌ SpamKick sendMessage error:",
-      err?.message || err
-    );
 
-    return null;
+  // Role 4
+  if (devUsers.includes(uid)) {
+    return 4;
   }
-}
 
 
-// ============================================================
-// KICK USER
-// ============================================================
-
-async function kickUser({
-  api,
-  usersData,
-  threadID,
-  senderID,
-  threadInfo,
-  commandName
-}) {
-
-  const uid =
-    normalizeID(senderID);
-
-  const user =
-    threadInfo.users[uid];
-
-  if (!user)
-    return false;
-
-  if (user.kicking)
-    return false;
-
-  user.kicking = true;
-
-
-  try {
-
-    console.log(
-      `🚨 SpamKick attempting: ${uid} | ${threadID}`
-    );
-
-
-    await new Promise((resolve, reject) => {
-
-      api.removeUserFromGroup(
-        uid,
-        threadID,
-        err => {
-
-          if (err)
-            return reject(err);
-
-          resolve();
-        }
-      );
-
-    });
-
-
-    let name = "User";
+  // Role 3
+  if (premiumUsers.includes(uid)) {
 
     try {
-
-      if (usersData?.getName) {
-        name =
-          await usersData.getName(uid);
-      }
-
-    }
-    catch {}
-
-
-    const info =
-      await sendMessage(
-        api,
-
-        [
-          `🚫 ${name} has been removed for spamming.`,
-          ``,
-          `UID: ${uid}`,
-          `📌 Spam limit: ${CONFIG.KICK_LIMIT} messages / ${CONFIG.KICK_WINDOW / 1000}s`,
-          ``,
-          `👉 React to this message to add the user again.`
-        ].join("\n"),
-
-        threadID
+      const userData = global.db?.allUserData?.find(
+        u => normalizeID(u.userID) === uid
       );
 
+      if (
+        userData &&
+        userData.data &&
+        userData.data.premiumExpireTime
+      ) {
+        if (
+          userData.data.premiumExpireTime < Date.now()
+        ) {
 
-    if (
-      info?.messageID &&
-      global.GoatBot?.onReaction
-    ) {
+          /*
+           * Expired premium falls through
+           * to lower group roles.
+           */
 
-      global.GoatBot.onReaction.set(
-        info.messageID,
-        {
-          commandName,
-          uid,
-          messageID: info.messageID,
-          threadID
+          if (adminBot.includes(uid)) {
+            return 2;
+          }
+
+          if (groupAdmins.includes(uid)) {
+            return 1;
+          }
+
+          return 0;
         }
+      }
+    } catch (err) {
+      console.error(
+        "[SpamKick] Premium role check error:",
+        err.message
       );
     }
 
-
-    console.log(
-      `🚫 SpamKick SUCCESS: ${uid} removed from ${threadID}`
-    );
-
-
-    // Reset only after SUCCESS
-    threadInfo.users[uid] = {
-      fast: [],
-      kick: [],
-      kicking: false,
-      lastActivity: Date.now()
-    };
-
-
-    return true;
-
+    return 3;
   }
-  catch (err) {
+
+
+  // Role 2
+  if (adminBot.includes(uid)) {
+    return 2;
+  }
+
+
+  // Role 1
+  if (groupAdmins.includes(uid)) {
+    return 1;
+  }
+
+
+  // Role 0
+  return 0;
+}
+
+
+// ============================================================
+// GET GROUP + BOT ADMIN STATUS
+// ============================================================
+
+async function getGroupStatus(api, threadID) {
+
+  const result = {
+    threadInfo: null,
+    botID: "",
+    botIsAdmin: false,
+    adminIDs: []
+  };
+
+
+  try {
+
+    result.threadInfo =
+      await api.getThreadInfo(threadID);
+
+    result.adminIDs =
+      (result.threadInfo.adminIDs || []).map(admin =>
+        normalizeID(
+          typeof admin === "object"
+            ? admin.id
+            : admin
+        )
+      );
+
+
+    result.botID = getBotID(api);
+
+    if (result.botID) {
+      result.botIsAdmin =
+        result.adminIDs.includes(result.botID);
+    }
+
+  } catch (err) {
 
     console.error(
-      `❌ SpamKick FAILED: ${uid} | ${threadID}`,
-      err?.message || err
+      "[SpamKick] getThreadInfo error:",
+      err.message
     );
 
+  }
 
-    // IMPORTANT:
-    // Do NOT reset counters on failure.
-    user.kicking = false;
+  return result;
+}
 
+
+// ============================================================
+// NOTIFICATION CONTROL
+// ============================================================
+
+function canNotify(threadInfo, key) {
+
+  const now = Date.now();
+
+  const last =
+    threadInfo.notifications[key] || 0;
+
+  if (
+    now - last <
+    NOTIFY_COOLDOWN
+  ) {
     return false;
   }
+
+  threadInfo.notifications[key] = now;
+
+  return true;
+}
+
+
+// ============================================================
+// USER NAME
+// ============================================================
+
+async function getUserName(usersData, uid) {
+
+  try {
+
+    if (
+      usersData &&
+      typeof usersData.getName === "function"
+    ) {
+      return await usersData.getName(uid);
+    }
+
+  } catch (err) {
+
+    console.error(
+      "[SpamKick] getName error:",
+      err.message
+    );
+
+  }
+
+  return "User";
+}
+
+
+// ============================================================
+// CLEAN USER DATA
+// ============================================================
+
+function cleanupUser(userData, now) {
+
+  if (!userData) return;
+
+
+  userData.fastMessages =
+    (userData.fastMessages || [])
+      .filter(t =>
+        now - t < FAST_WINDOW
+      );
+
+
+  userData.kickMessages =
+    (userData.kickMessages || [])
+      .filter(t =>
+        now - t < KICK_WINDOW
+      );
 }
 
 
@@ -444,268 +362,736 @@ async function kickUser({
 // ON CHAT
 // ============================================================
 
-module.exports.onChat = async ({
+module.exports.onChat = async function ({
   api,
   event,
-  usersData,
-  commandName
-}) => {
+  usersData
+}) {
 
-  const senderID =
-    normalizeID(event?.senderID);
-
-  const threadID =
-    normalizeID(event?.threadID);
+  const {
+    senderID,
+    threadID
+  } = event;
 
 
-  if (!senderID || !threadID)
+  if (!senderID || !threadID) {
     return;
+  }
 
 
-  const threadInfo =
+  const data =
     getThreadData(threadID);
 
 
-  if (threadInfo.enabled !== true)
-    return;
-
-
-  // ----------------------------------------------------------
-  // GET USER ROLE
-  // ----------------------------------------------------------
-
-  const role =
-    getUserRole(
-      threadID,
-      senderID
-    );
-
-
-  // ----------------------------------------------------------
-  // PROTECTED ROLES
-  //
-  // Role 1, 2, 4, 5:
-  // Do not monitor/kick.
-  //
-  // Role 0 and 3:
-  // Continue.
-  // ----------------------------------------------------------
-
-  if (!canKickRole(role)) {
+  /*
+   * SpamKick disabled
+   */
+  if (data.enabled !== true) {
     return;
   }
+
+
+  const uid =
+    normalizeID(senderID);
 
 
   const now =
     Date.now();
 
 
-  cleanupThread(threadInfo);
+  // ==========================================================
+  // GET GROUP INFO
+  // ==========================================================
 
+  let groupStatus;
 
-  // ----------------------------------------------------------
-  // USER DATA
-  // ----------------------------------------------------------
+  try {
 
-  if (!threadInfo.users[senderID]) {
-
-    threadInfo.users[senderID] = {
-      fast: [],
-      kick: [],
-      kicking: false,
-      lastActivity: now,
-      fastWarned: false
-    };
-  }
-
-
-  const user =
-    cleanupUser(
-      threadInfo.users[senderID]
-    );
-
-
-  user.lastActivity = now;
-
-
-  // ----------------------------------------------------------
-  // FAST SPAM
-  // 8 messages / 10 seconds
-  // ----------------------------------------------------------
-
-  user.fast.push(now);
-
-
-  // ----------------------------------------------------------
-  // KICK SPAM
-  // 15 messages / 80 seconds
-  // ----------------------------------------------------------
-
-  user.kick.push(now);
-
-
-  // ----------------------------------------------------------
-  // GROUP SPAM
-  // 500 messages / 5 minutes
-  // ----------------------------------------------------------
-
-  threadInfo.groupMessages.push(now);
-
-
-  // ----------------------------------------------------------
-  // FAST SPAM WARNING
-  // ----------------------------------------------------------
-
-  if (
-    user.fast.length >=
-    CONFIG.FAST_LIMIT
-  ) {
-
-    if (!user.fastWarned) {
-
-      user.fastWarned = true;
-
-      await sendMessage(
+    groupStatus =
+      await getGroupStatus(
         api,
-        "🛡️ Auto spam detected.\nPlease stop spamming.",
         threadID
       );
-    }
 
-  }
-  else {
+  } catch (err) {
 
-    user.fastWarned = false;
-  }
-
-
-  // ----------------------------------------------------------
-  // AUTO KICK
-  // ----------------------------------------------------------
-
-  if (
-    user.kick.length >=
-    CONFIG.KICK_LIMIT &&
-    !user.kicking
-  ) {
-
-    await kickUser({
-      api,
-      usersData,
-      threadID,
-      senderID,
-      threadInfo,
-      commandName
-    });
+    console.error(
+      "[SpamKick] Group status error:",
+      err.message
+    );
 
     return;
   }
 
 
-  // ----------------------------------------------------------
+  const threadInfo =
+    groupStatus.threadInfo;
+
+
+  /*
+   * If group information cannot be obtained,
+   * do not attempt a kick.
+   */
+  if (!threadInfo) {
+    return;
+  }
+
+
+  // ==========================================================
+  // USER ROLE
+  // ==========================================================
+
+  const role =
+    getUserRole(
+      threadInfo,
+      uid
+    );
+
+
+  const roleName =
+    getRoleName(role);
+
+
+  // ==========================================================
+  // GROUP-WIDE SPAM COUNTER
+  // ==========================================================
+
+  data.groupMessages =
+    (data.groupMessages || [])
+      .filter(t =>
+        now - t < GROUP_WINDOW
+      );
+
+
+  /*
+   * Count ALL messages for group-wide protection.
+   *
+   * Even protected roles are counted here.
+   */
+  data.groupMessages.push(now);
+
+
+  // ==========================================================
   // GROUP SPAM
-  // ----------------------------------------------------------
+  // ==========================================================
 
   if (
-    threadInfo.groupMessages.length >=
-    CONFIG.GROUP_LIMIT
+    data.groupMessages.length >=
+    GROUP_LIMIT
   ) {
 
-    if (threadInfo.groupAction)
-      return;
+    if (
+      canNotify(
+        data,
+        "group-spam"
+      )
+    ) {
 
-    threadInfo.groupAction = true;
+      try {
+
+        await api.sendMessage(
+          {
+            body:
+              "🚨 GROUP SPAM ALERT\n\n" +
+              `📊 Messages: ${data.groupMessages.length}/${GROUP_LIMIT}\n` +
+              "⏱️ Window: 5 minutes\n" +
+              "⚠️ Too much spam detected.\n\n" +
+              "🤖 SpamKick is leaving this group."
+          },
+          threadID
+        );
+
+      } catch (err) {
+
+        console.error(
+          "[SpamKick] Group warning failed:",
+          err.message
+        );
+
+      }
+    }
 
 
-    console.log(
-      `🚨 GROUP SPAM detected: ${threadID}`
+    /*
+     * Bot leaves group.
+     */
+    try {
+
+      await api.removeUserFromGroup(
+        getBotID(api),
+        threadID
+      );
+
+    } catch (err) {
+
+      console.error(
+        "[SpamKick] Failed to leave group:",
+        err.message
+      );
+    }
+
+
+    return;
+  }
+
+
+  // ==========================================================
+  // ROLE INFORMATION
+  // ==========================================================
+
+  /*
+   * Protected roles:
+   *
+   * Role 1 = Group Admin
+   * Role 2 = Bot Admin
+   * Role 4 = Developer
+   * Role 5 = Owner
+   *
+   * They are NOT kicked.
+   */
+
+
+  if (!canKickRole(role)) {
+
+    /*
+     * Do not track individual spam
+     * for protected roles.
+     *
+     * But notify once if they reach
+     * the fast spam threshold.
+     */
+
+    const protectedUser =
+      data.users[uid] ||
+      {
+        fastMessages: [],
+        kickMessages: [],
+        protectedNotified: false
+      };
+
+
+    protectedUser.fastMessages =
+      (protectedUser.fastMessages || [])
+        .filter(t =>
+          now - t < FAST_WINDOW
+        );
+
+
+    protectedUser.fastMessages.push(now);
+
+
+    if (
+      protectedUser.fastMessages.length >=
+        FAST_LIMIT &&
+      !protectedUser.protectedNotified
+    ) {
+
+      protectedUser.protectedNotified =
+        true;
+
+
+      try {
+
+        const name =
+          await getUserName(
+            usersData,
+            uid
+          );
+
+
+        await api.sendMessage(
+          {
+            body:
+              "⚠️ SPAM DETECTED\n\n" +
+              `👤 User: ${name}\n` +
+              `🆔 UID: ${uid}\n` +
+              `🛡️ ${roleName}\n\n` +
+              "🚫 This role is protected.\n" +
+              "❌ SpamKick will NOT kick this user."
+          },
+          threadID
+        );
+
+      } catch (err) {
+
+        console.error(
+          "[SpamKick] Protected notification error:",
+          err.message
+        );
+
+      }
+    }
+
+
+    data.users[uid] =
+      protectedUser;
+
+    global.antispam.set(
+      threadID,
+      data
     );
+
+    return;
+  }
+
+
+  // ==========================================================
+  // KICKABLE USER
+  // ==========================================================
+
+  let userData =
+    data.users[uid];
+
+
+  if (!userData) {
+
+    userData = {
+      fastMessages: [],
+      kickMessages: [],
+      kicking: false,
+      warned: false,
+      protectedNotified: false
+    };
+
+    data.users[uid] =
+      userData;
+  }
+
+
+  cleanupUser(
+    userData,
+    now
+  );
+
+
+  userData.fastMessages.push(
+    now
+  );
+
+  userData.kickMessages.push(
+    now
+  );
+
+
+  // ==========================================================
+  // FAST WARNING
+  // ==========================================================
+
+  if (
+    userData.fastMessages.length >=
+      FAST_LIMIT &&
+    !userData.warned
+  ) {
+
+    userData.warned =
+      true;
 
 
     try {
 
-      await sendMessage(
-        api,
-        "📴 Too much spam detected.\nBot is leaving this group.",
+      const name =
+        await getUserName(
+          usersData,
+          uid
+        );
+
+
+      await api.sendMessage(
+        {
+          body:
+            "⚠️ SPAM WARNING\n\n" +
+            `👤 User: ${name}\n` +
+            `🆔 UID: ${uid}\n` +
+            `🛡️ ${roleName}\n` +
+            `📊 ${userData.fastMessages.length}/${FAST_LIMIT} messages in 10s\n\n` +
+            "⚠️ Please stop spamming."
+        },
         threadID
       );
 
-
-      await new Promise(resolve => {
-
-        try {
-
-          api.removeUserFromGroup(
-            api.getCurrentUserID(),
-            threadID,
-            () => resolve()
-          );
-
-        }
-        catch {
-          resolve();
-        }
-
-      });
-
-    }
-    catch (err) {
+    } catch (err) {
 
       console.error(
-        "❌ Group spam action failed:",
-        err?.message || err
+        "[SpamKick] Warning failed:",
+        err.message
       );
 
-      threadInfo.groupAction = false;
     }
+  }
+
+
+  // ==========================================================
+  // KICK LIMIT
+  // ==========================================================
+
+  if (
+    userData.kickMessages.length <
+    KICK_LIMIT
+  ) {
+
+    global.antispam.set(
+      threadID,
+      data
+    );
+
+    return;
+  }
+
+
+  /*
+   * Already kicking.
+   */
+  if (userData.kicking) {
+    return;
+  }
+
+
+  userData.kicking =
+    true;
+
+
+  // ==========================================================
+  // CHECK BOT ADMIN STATUS
+  // ==========================================================
+
+  if (!groupStatus.botIsAdmin) {
+
+    /*
+     * Bot is NOT admin.
+     *
+     * Do not call removeUserFromGroup().
+     */
+
+    if (
+      canNotify(
+        data,
+        `bot-not-admin-${threadID}`
+      )
+    ) {
+
+      try {
+
+        const name =
+          await getUserName(
+            usersData,
+            uid
+          );
+
+
+        await api.sendMessage(
+          {
+            body:
+              "⚠️ SPAMMER DETECTED\n\n" +
+              `👤 User: ${name}\n` +
+              `🆔 UID: ${uid}\n` +
+              `🛡️ ${roleName}\n\n` +
+              "🤖 Bot Admin: ❌ NO\n" +
+              "🚫 Kick করা সম্ভব নয়।\n\n" +
+              "ℹ️ Bot-কে Group Admin দিলে " +
+              "SpamKick কাজ করবে."
+          },
+          threadID
+        );
+
+      } catch (err) {
+
+        console.error(
+          "[SpamKick] Bot-not-admin notification error:",
+          err.message
+        );
+
+      }
+    }
+
+
+    /*
+     * Keep the counter.
+     * Do NOT reset.
+     */
+    userData.kicking =
+      false;
+
+
+    global.antispam.set(
+      threadID,
+      data
+    );
+
+    return;
+  }
+
+
+  // ==========================================================
+  // BOT IS ADMIN
+  // ==========================================================
+
+  try {
+
+    const name =
+      await getUserName(
+        usersData,
+        uid
+      );
+
+
+    /*
+     * Inform before kick.
+     */
+    if (
+      canNotify(
+        data,
+        `kick-${uid}`
+      )
+    ) {
+
+      try {
+
+        await api.sendMessage(
+          {
+            body:
+              "🚨 SPAMMER DETECTED\n\n" +
+              `👤 User: ${name}\n` +
+              `🆔 UID: ${uid}\n` +
+              `🛡️ ${roleName}\n` +
+              `📊 ${userData.kickMessages.length}/${KICK_LIMIT}\n\n` +
+              "🤖 Bot Admin: ✅ YES\n" +
+              "🔨 Action: KICK"
+          },
+          threadID
+        );
+
+      } catch (notifyErr) {
+
+        console.error(
+          "[SpamKick] Kick notification error:",
+          notifyErr.message
+        );
+
+      }
+    }
+
+
+    // ========================================================
+    // KICK
+    // ========================================================
+
+    await new Promise(
+      (resolve, reject) => {
+
+        api.removeUserFromGroup(
+          uid,
+          threadID,
+          err => {
+
+            if (err) {
+              return reject(err);
+            }
+
+            resolve();
+          }
+        );
+
+      }
+    );
+
+
+    // ========================================================
+    // KICK SUCCESS
+    // ========================================================
+
+    let info = null;
+
+
+    try {
+
+      info =
+        await api.sendMessage(
+          {
+            body:
+              `🚫 ${name} has been removed for spamming.\n` +
+              `🆔 UID: ${uid}\n` +
+              `🛡️ ${roleName}\n` +
+              "🤖 Bot Admin: ✅ YES\n\n" +
+              "👉 React to add again."
+          },
+          threadID
+        );
+
+    } catch (sendErr) {
+
+      console.error(
+        "[SpamKick] Kick result message error:",
+        sendErr.message
+      );
+
+    }
+
+
+    /*
+     * Reaction handler
+     */
+    if (
+      info &&
+      info.messageID &&
+      global.GoatBot &&
+      global.GoatBot.onReaction
+    ) {
+
+      global.GoatBot.onReaction.set(
+        info.messageID,
+        {
+          commandName: "spamkick",
+          uid,
+          messageID: info.messageID,
+          threadID
+        }
+      );
+
+    }
+
+
+    console.log(
+      `[SpamKick] SUCCESS | UID=${uid} | ROLE=${role} | THREAD=${threadID}`
+    );
+
+
+    /*
+     * SUCCESS → reset
+     */
+    delete data.users[uid];
+
+
+  } catch (err) {
+
+    // ========================================================
+    // KICK FAILED
+    // ========================================================
+
+    console.error(
+      `[SpamKick] FAILED | UID=${uid} | ROLE=${role}:`,
+      err
+    );
+
+
+    /*
+     * IMPORTANT:
+     *
+     * Kick failed → counter reset হবে না।
+     * পরের message এ আবার attempt করা যাবে।
+     */
+
+    userData.kicking =
+      false;
+
+
+    /*
+     * Inform user that kick failed.
+     */
+    if (
+      canNotify(
+        data,
+        `kick-failed-${uid}`
+      )
+    ) {
+
+      try {
+
+        await api.sendMessage(
+          {
+            body:
+              "❌ SPAMKICK FAILED\n\n" +
+              `🆔 UID: ${uid}\n` +
+              `🛡️ ${roleName}\n` +
+              "🤖 Bot Admin: ✅ YES\n" +
+              "⚠️ Facebook user-কে remove করতে দেয়নি।\n\n" +
+              "ℹ️ Counter রাখা হয়েছে; " +
+              "পরের spam attempt-এ আবার চেষ্টা করা হবে."
+          },
+          threadID
+        );
+
+      } catch (notifyErr) {
+
+        console.error(
+          "[SpamKick] Failure notification error:",
+          notifyErr.message
+        );
+
+      }
+    }
+
   }
 
 
   global.antispam.set(
     threadID,
-    threadInfo
+    data
   );
 };
 
 
 // ============================================================
-// REACTION
+// ON REACTION
 // ============================================================
 
-module.exports.onReaction = async ({
+module.exports.onReaction = async function ({
   api,
   event,
   Reaction,
   role
-}) => {
+}) {
 
-  // Only Role 1+
-  if (role < 1)
+  /*
+   * Only role 1+ can restore.
+   */
+  if (Number(role) < 1) {
     return;
+  }
 
 
-  if (!Reaction)
-    return;
+  const {
+    uid,
+    messageID,
+    threadID: reactionThreadID
+  } = Reaction || {};
 
-
-  const uid =
-    normalizeID(Reaction.uid);
-
-  const reactionThreadID =
-    normalizeID(Reaction.threadID);
 
   const threadID =
-    normalizeID(
-      event?.threadID ||
-      reactionThreadID
-    );
+    event.threadID ||
+    reactionThreadID;
 
 
-  if (!uid || !threadID)
+  if (!uid || !threadID) {
     return;
+  }
 
 
   try {
+
+    /*
+     * Check bot admin before adding.
+     */
+    const groupStatus =
+      await getGroupStatus(
+        api,
+        threadID
+      );
+
+
+    if (!groupStatus.botIsAdmin) {
+
+      await api.sendMessage(
+        {
+          body:
+            "❌ | Bot Group Admin নয়।\n" +
+            "User-কে আবার group-এ add করা সম্ভব নয়."
+        },
+        threadID
+      );
+
+      return;
+    }
+
 
     await api.addUserToGroup(
       uid,
@@ -713,215 +1099,284 @@ module.exports.onReaction = async ({
     );
 
 
-    if (Reaction.messageID) {
+    if (messageID) {
 
       try {
 
         await api.unsendMessage(
-          Reaction.messageID,
+          messageID,
           threadID
         );
 
-      }
-      catch (err) {
+      } catch (err) {
 
         console.error(
-          "❌ SpamKick unsend failed:",
-          err?.message || err
+          "[SpamKick] Unsend failed:",
+          err.message
         );
+
       }
     }
 
-
-    const threadInfo =
-      getThreadData(threadID);
-
-
-    delete threadInfo.users[uid];
-
-
-    global.antispam.set(
-      threadID,
-      threadInfo
-    );
-
-
-    console.log(
-      `✅ SpamKick: ${uid} added back to ${threadID}`
-    );
-
-  }
-  catch (err) {
-
-    console.error(
-      `❌ SpamKick re-add failed: ${uid}`,
-      err?.message || err
-    );
-  }
-};
-
-
-// ============================================================
-// COMMAND
-// ============================================================
-
-module.exports.onStart = async ({
-  api,
-  event,
-  args
-}) => {
-
-  const threadID =
-    normalizeID(event?.threadID);
-
-  const senderID =
-    normalizeID(event?.senderID);
-
-  const action =
-    String(
-      args?.[0] || ""
-    ).toLowerCase();
-
-
-  // ----------------------------------------------------------
-  // COMMAND PERMISSION
-  // ----------------------------------------------------------
-
-  const role =
-    getUserRole(
-      threadID,
-      senderID
-    );
-
-
-  if (role < 1) {
-
-    return api.sendMessage(
-      "⛔ Only group admins can use SpamKick settings.",
-      threadID
-    );
-  }
-
-
-  // ----------------------------------------------------------
-  // ON
-  // ----------------------------------------------------------
-
-  if (action === "on") {
-
-    global.antispam.set(
-      threadID,
-      {
-        enabled: true,
-        users: {},
-        groupMessages: [],
-        groupAction: false,
-        createdAt: Date.now()
-      }
-    );
-
-
-    return api.sendMessage(
-      [
-        "🟢 SpamKick is ON.",
-        "",
-        "⚡ Fast spam: 8 messages / 10 sec",
-        "🚫 Auto kick: 15 messages / 80 sec",
-        "📴 Group spam: 500 messages / 5 min",
-        "",
-        "🎯 Kickable roles: 0, 3",
-        "🛡️ Protected roles: 1, 2, 4, 5"
-      ].join("\n"),
-      threadID
-    );
-  }
-
-
-  // ----------------------------------------------------------
-  // OFF
-  // ----------------------------------------------------------
-
-  if (action === "off") {
-
-    global.antispam.set(
-      threadID,
-      {
-        enabled: false,
-        users: {},
-        groupMessages: [],
-        groupAction: false,
-        createdAt: Date.now()
-      }
-    );
-
-
-    return api.sendMessage(
-      "🔴 SpamKick is OFF.\nBot will not detect or kick spammers in this group.",
-      threadID
-    );
-  }
-
-
-  // ----------------------------------------------------------
-  // STATUS
-  // ----------------------------------------------------------
-
-  if (action === "status") {
 
     const data =
       getThreadData(threadID);
 
 
-    const users =
-      Object.keys(
-        data.users || {}
-      ).length;
+    delete data.users[
+      normalizeID(uid)
+    ];
 
 
-    const groupMessages =
-      data.groupMessages?.length || 0;
+    data.notifications =
+      data.notifications || {};
 
+
+    global.antispam.set(
+      threadID,
+      data
+    );
+
+
+    console.log(
+      `[SpamKick] RESTORED | UID=${uid} | THREAD=${threadID}`
+    );
+
+
+  } catch (err) {
+
+    console.error(
+      "[SpamKick] Failed to restore user:",
+      err.message
+    );
+
+
+    try {
+
+      await api.sendMessage(
+        {
+          body:
+            `❌ | User-কে আবার add করা যায়নি.\n` +
+            `UID: ${uid}\n` +
+            `Error: ${err.message || "Unknown error"}`
+        },
+        threadID
+      );
+
+    } catch (_) {}
+  }
+};
+
+
+// ============================================================
+// ON START
+// ============================================================
+
+module.exports.onStart = async function ({
+  api,
+  event,
+  args
+}) {
+
+  const threadID =
+    event.threadID;
+
+
+  const action =
+    String(
+      args[0] || ""
+    ).toLowerCase();
+
+
+  /*
+   * Get group info.
+   */
+  let threadInfo;
+
+  try {
+
+    threadInfo =
+      await api.getThreadInfo(
+        threadID
+      );
+
+  } catch (err) {
 
     return api.sendMessage(
-      [
-        data.enabled
-          ? "🟢 SpamKick is ON."
-          : "🔴 SpamKick is OFF.",
-        "",
-        `👤 Tracked kickable users: ${users}`,
-        `💬 Group messages: ${groupMessages}`,
-        "",
-        `⚡ Fast spam: ${CONFIG.FAST_LIMIT} / 10 sec`,
-        `🚫 Auto kick: ${CONFIG.KICK_LIMIT} / 80 sec`,
-        `📴 Group limit: ${CONFIG.GROUP_LIMIT} / 5 min`,
-        "",
-        "🎯 Kickable: Role 0 + Role 3",
-        "🛡️ Protected: Role 1 + 2 + 4 + 5"
-      ].join("\n"),
+      "❌ | Group information নেওয়া যাচ্ছে না.",
       threadID
     );
   }
 
 
-  // ----------------------------------------------------------
+  /*
+   * Check command user's role.
+   */
+  const userRole =
+    getUserRole(
+      threadInfo,
+      event.senderID
+    );
+
+
+  if (userRole < 1) {
+
+    return api.sendMessage(
+      "❌ | এই command ব্যবহার করার permission নেই.",
+      threadID
+    );
+
+  }
+
+
+  const data =
+    getThreadData(
+      threadID
+    );
+
+
+  // ==========================================================
+  // ON
+  // ==========================================================
+
+  if (action === "on") {
+
+    data.enabled =
+      true;
+
+    data.users = {};
+
+    data.groupMessages = [];
+
+    data.notifications = {};
+
+    global.antispam.set(
+      threadID,
+      data
+    );
+
+
+    return api.sendMessage(
+      "🟢 SPAMKICK ON\n\n" +
+      "👤 Role 0 → KICK\n" +
+      "💎 Role 3 → KICK\n" +
+      "🛡️ Role 1/2/4/5 → PROTECTED\n\n" +
+      "⚡ 8 messages / 10s → Warning\n" +
+      "🔨 15 messages / 80s → Kick\n" +
+      "🚨 500 messages / 5min → Group protection",
+      threadID
+    );
+
+  }
+
+
+  // ==========================================================
+  // OFF
+  // ==========================================================
+
+  if (action === "off") {
+
+    data.enabled =
+      false;
+
+    data.users = {};
+
+    data.groupMessages = [];
+
+    data.notifications = {};
+
+    global.antispam.set(
+      threadID,
+      data
+    );
+
+
+    return api.sendMessage(
+      "🔴 SPAMKICK OFF\n\n" +
+      "Bot আর automatic spammer kick করবে না.",
+      threadID
+    );
+
+  }
+
+
+  // ==========================================================
+  // STATUS
+  // ==========================================================
+
+  if (action === "status") {
+
+    const adminIDs =
+      (threadInfo.adminIDs || [])
+        .map(admin =>
+          normalizeID(
+            typeof admin === "object"
+              ? admin.id
+              : admin
+          )
+        );
+
+
+    const botID =
+      getBotID(api);
+
+
+    const botIsAdmin =
+      botID &&
+      adminIDs.includes(botID);
+
+
+    return api.sendMessage(
+      "🛡️ SPAMKICK STATUS\n\n" +
+
+      `Status: ${
+        data.enabled
+          ? "🟢 ON"
+          : "🔴 OFF"
+      }\n\n` +
+
+      "👥 ROLE SYSTEM\n" +
+      "• Role 0 → 🔨 KICK\n" +
+      "• Role 1 → 🛡️ PROTECTED\n" +
+      "• Role 2 → 🛡️ PROTECTED\n" +
+      "• Role 3 → 🔨 KICK\n" +
+      "• Role 4 → 🛡️ PROTECTED\n" +
+      "• Role 5 → 🛡️ PROTECTED\n\n" +
+
+      "🤖 BOT ADMIN STATUS\n" +
+      `• Bot UID: ${botID || "Unknown"}\n` +
+      `• Admin: ${
+        botIsAdmin
+          ? "✅ YES"
+          : "❌ NO"
+      }\n\n` +
+
+      "⚡ LIMITS\n" +
+      "• Warning: 8 / 10 seconds\n" +
+      "• Kick: 15 / 80 seconds\n" +
+      "• Group: 500 / 5 minutes",
+      threadID
+    );
+
+  }
+
+
+  // ==========================================================
   // HELP
-  // ----------------------------------------------------------
+  // ==========================================================
 
   return api.sendMessage(
-    [
-      "⚙️ SpamKick",
-      "",
-      "spamkick on",
-      "spamkick off",
-      "spamkick status",
-      "",
-      "⚡ 8 msg / 10 sec = warning",
-      "🚫 15 msg / 80 sec = auto kick",
-      "📴 500 msg / 5 min = bot leaves",
-      "",
-      "🎯 Kickable: Role 0 + Role 3",
-      "🛡️ Protected: Role 1 + 2 + 4 + 5"
-    ].join("\n"),
+    "⚙️ SPAMKICK\n\n" +
+    "spamkick on\n" +
+    "spamkick off\n" +
+    "spamkick status\n\n" +
+
+    "🛡️ Role 1/2/4/5 protected\n" +
+    "🔨 Role 0/3 kickable\n\n" +
+
+    "⚡ 8 msg / 10 sec → Warning\n" +
+    "🔨 15 msg / 80 sec → Kick\n" +
+    "🚨 500 msg / 5 min → Group protection",
     threadID
   );
 };
