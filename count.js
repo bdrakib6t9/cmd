@@ -2,12 +2,12 @@ module.exports = {
   config: {
     name: "count",
     aliases: ["c"],
-    version: "1.2",
+    version: "4.1",
     author: "Rakib",
     countDown: 5,
     role: 0,
     shortDescription: "Message count",
-    longDescription: "Show member message ranking and group total message",
+    longDescription: "Show group message count",
     category: "group",
     guide: "{pn} all"
   },
@@ -17,53 +17,55 @@ module.exports = {
     event,
     args,
     message,
-    threadsData,
-    usersData
+    threadsData
   }) {
     const threadID = event.threadID;
 
     try {
-      // ==============================
-      // GET MEMBERS DATA
-      // ==============================
-      let members = await threadsData.get(threadID, "members");
+      // ==========================================
+      // GET FULL THREAD DATA
+      // ==========================================
+      const threadData =
+        await threadsData.get(threadID);
 
-      if (!Array.isArray(members)) {
-        members = [];
-      }
+      let members = Array.isArray(threadData?.members)
+        ? threadData.members
+        : [];
 
-      // ==============================
-      // GET CURRENT GROUP MEMBERS
-      // ==============================
+      // ==========================================
+      // GET CURRENT PARTICIPANTS
+      // ==========================================
       let participantIDs = [];
 
       try {
-        const threadInfo = await api.getThreadInfo(threadID);
+        const threadInfo =
+          await api.getThreadInfo(threadID);
 
-        if (Array.isArray(threadInfo?.participantIDs)) {
-          participantIDs = threadInfo.participantIDs.map(String);
-        }
-      } catch (err) {
-        console.error(
-          "[COUNT] Failed to get participantIDs:",
-          err.message
+        participantIDs =
+          Array.isArray(threadInfo?.participantIDs)
+            ? threadInfo.participantIDs.map(String)
+            : [];
+      } catch (e) {
+        console.log(
+          "[COUNT] getThreadInfo error:",
+          e.message
         );
       }
 
-      // ==============================
-      // UPDATE IN-GROUP STATUS
-      // ==============================
+      // ==========================================
+      // ALL MEMBERS
+      // INCLUDING LEFT MEMBERS
+      // ==========================================
       const arraySortAll = members
         .filter(user => user && user.userID)
         .map(user => {
           const userID = String(user.userID);
 
-          let inGroup;
+          let inGroup = user.inGroup !== false;
 
           if (participantIDs.length > 0) {
-            inGroup = participantIDs.includes(userID);
-          } else {
-            inGroup = user.inGroup !== false;
+            inGroup =
+              participantIDs.includes(userID);
           }
 
           return {
@@ -74,63 +76,66 @@ module.exports = {
           };
         });
 
-      // ==============================
-      // CURRENT ACTIVE MEMBERS
-      // ==============================
-      const arraySort = arraySortAll.filter(
-        user => user.inGroup === true
-      );
+      // ==========================================
+      // ACTIVE MEMBERS
+      // ==========================================
+      const arraySort =
+        arraySortAll.filter(
+          user => user.inGroup === true
+        );
 
-      // ==============================
-      // SORT ALL MEMBERS
-      // Highest count first
-      // ==============================
-      arraySortAll.sort((a, b) => {
-        return (
+      // ==========================================
+      // SORT
+      // ==========================================
+      arraySortAll.sort(
+        (a, b) =>
           (Number(b.count) || 0) -
           (Number(a.count) || 0)
-        );
-      });
-
-      // ==============================
-      // SORT ACTIVE MEMBERS
-      // ==============================
-      arraySort.sort((a, b) => {
-        return (
-          (Number(b.count) || 0) -
-          (Number(a.count) || 0)
-        );
-      });
-
-      // ==============================
-      // MEMBER TOTAL
-      // ==============================
-      const memberTotal = arraySortAll.reduce(
-        (sum, user) =>
-          sum + (Number(user.count) || 0),
-        0
       );
 
-      // ==============================
-      // MANUAL GROUP COUNT
-      //
-      // addcount command saves here:
-      // threadsData -> manualCount
-      // ==============================
-      let manualCount =
-        await threadsData.get(threadID, "manualCount");
+      arraySort.sort(
+        (a, b) =>
+          (Number(b.count) || 0) -
+          (Number(a.count) || 0)
+      );
 
-      manualCount = Number(manualCount) || 0;
+      // ==========================================
+      // MEMBER MESSAGE TOTAL
+      // ==========================================
+      const memberTotal =
+        arraySortAll.reduce(
+          (sum, user) =>
+            sum + (Number(user.count) || 0),
+          0
+        );
 
-      // ==============================
+      // ==========================================
+      // MANUAL ADDED COUNT
+      // FROM addcount COMMAND
+      // ==========================================
+      let manualCount = 0;
+
+      try {
+        manualCount =
+          Number(
+            await threadsData.get(
+              threadID,
+              "manualCount"
+            )
+          ) || 0;
+      } catch (e) {
+        manualCount = 0;
+      }
+
+      // ==========================================
       // FINAL GROUP TOTAL
-      // ==============================
+      // ==========================================
       const groupTotalMessages =
         memberTotal + manualCount;
 
-      // ==============================
+      // ==========================================
       // ACTIVE MEMBER TOTAL
-      // ==============================
+      // ==========================================
       const activeMemberMessages =
         arraySort.reduce(
           (sum, user) =>
@@ -138,139 +143,122 @@ module.exports = {
           0
         );
 
-      // ==============================
-      // COMMAND CHECK
-      // ==============================
-      const subCommand = String(
-        args[0] || ""
-      ).toLowerCase();
-
+      // ==========================================
+      // NO DATA CHECK
+      // ==========================================
       if (
-        subCommand !== "all" &&
-        subCommand !== ""
+        arraySortAll.length === 0 &&
+        manualCount === 0
       ) {
         return message.reply(
-          "❌ Invalid command.\n\n" +
-          "Use:\n" +
-          `${global.GoatBot?.config?.prefix || "."}count all`
+          "📊 No message count data found."
         );
       }
 
-      // ==============================
-      // PAGE DATA
-      // ==============================
+      // ==========================================
+      // PAGE
+      // ==========================================
       const splitPage =
         global.utils.splitPage(
           arraySortAll,
           50
         );
 
-      if (!splitPage.length) {
-        return message.reply(
-          "📊 No message count data found."
-        );
-      }
-
-      const page = 1;
-
-      // ==============================
-      // BUILD PAGE
-      // ==============================
       const buildMessage = (
-        currentPage,
+        pageNumber,
         pageData
       ) => {
-        let msg = "";
+        const pageTotal =
+          pageData.reduce(
+            (sum, user) =>
+              sum + (Number(user.count) || 0),
+            0
+          );
 
-        msg += "╭───────────────╮\n";
-        msg += "│  MESSAGE RANK  │\n";
-        msg += "╰───────────────╯\n\n";
+        let msg =
+          "╭───────────────╮\n" +
+          "│  MESSAGE RANK  │\n" +
+          "╰───────────────╯\n\n";
 
-        msg += `🌐 Group Total Message: ${groupTotalMessages.toLocaleString()}\n`;
-        msg += `👥 Active Member Message: ${activeMemberMessages.toLocaleString()}\n`;
-        msg += `📄 This Page Message: ${pageData.reduce(
-          (sum, user) =>
-            sum + (Number(user.count) || 0),
-          0
-        ).toLocaleString()}\n`;
+        msg +=
+          `🌐 Group Total Message: ${groupTotalMessages.toLocaleString()}\n`;
+
+        msg +=
+          `👥 Active Member Message: ${activeMemberMessages.toLocaleString()}\n`;
+
+        msg +=
+          `📄 This Page Message: ${pageTotal.toLocaleString()}\n`;
 
         if (manualCount > 0) {
-          msg += `➕ Added Message: ${manualCount.toLocaleString()}\n`;
-        }
-
-        msg += "\n";
-
-        pageData.forEach((user, index) => {
-          const globalIndex =
-            (currentPage - 1) * 50 +
-            index +
-            1;
-
-          const count =
-            Number(user.count) || 0;
-
-          const name =
-            user.name ||
-            user.nickname ||
-            "Unknown User";
-
-          const leftMark =
-            user.inGroup === false
-              ? " 🚪"
-              : "";
-
-          let medal = "▫️";
-
-          if (globalIndex === 1) {
-            medal = "🥇";
-          } else if (globalIndex === 2) {
-            medal = "🥈";
-          } else if (globalIndex === 3) {
-            medal = "🥉";
-          }
-
-          msg += `${medal} ${name}${leftMark}: ${count.toLocaleString()}\n`;
-        });
-
-        msg += "\n";
-        msg += "╭────────────────────╮\n";
-        msg += `│ Page [${currentPage}/${splitPage.length}] │\n`;
-        msg += "╰────────────────────╯\n";
-
-        if (splitPage.length > 1) {
           msg +=
-            "\nReply to this message with the page number to view more.";
+            `➕ Added Message: ${manualCount.toLocaleString()}\n`;
         }
 
         msg +=
-          "\nThose who do not have a name in the list have not sent any messages.";
+          "╭────────────────────────╮\n";
+
+        pageData.forEach(
+          (user, index) => {
+            const position =
+              (pageNumber - 1) * 50 +
+              index +
+              1;
+
+            const count =
+              Number(user.count) || 0;
+
+            const name =
+              user.name ||
+              user.nickname ||
+              "Unknown User";
+
+            const left =
+              user.inGroup === false
+                ? " 🚪"
+                : "";
+
+            let medal = "▫️";
+
+            if (position === 1)
+              medal = "🥇";
+            else if (position === 2)
+              medal = "🥈";
+            else if (position === 3)
+              medal = "🥉";
+
+            msg +=
+              `${medal} ${name}${left}: ${count.toLocaleString()}\n`;
+          }
+        );
+
+        msg +=
+          "╰────────────────────────╯\n";
+
+        msg +=
+          `Page [${pageNumber}/${splitPage.length}]`;
+
+        if (splitPage.length > 1) {
+          msg +=
+            "\nReply to this message with the page number to view more";
+        }
 
         return msg;
       };
 
-      const msg = buildMessage(
-        page,
-        splitPage[0]
-      );
+      const sent =
+        await message.reply(
+          buildMessage(1, splitPage[0])
+        );
 
-      // ==============================
-      // SEND MESSAGE
-      // ==============================
-      const sentMessage = await message.reply(msg);
-
-      // ==============================
-      // REPLY LISTENER
-      // ==============================
       if (
         splitPage.length > 1 &&
-        sentMessage?.messageID
+        sent?.messageID
       ) {
         global.GoatBot.onReply.set(
-          sentMessage.messageID,
+          sent.messageID,
           {
             commandName: this.config.name,
             author: event.senderID,
-            threadID,
             splitPage,
             groupTotalMessages,
             activeMemberMessages,
@@ -280,88 +268,89 @@ module.exports = {
       }
     } catch (error) {
       console.error(
-        "[COUNT] ERROR:",
+        "[COUNT ERROR]",
         error
       );
 
       return message.reply(
-        "❌ Failed to get message count.\n\n" +
-        `Error: ${error.message}`
+        "❌ Count error:\n" +
+        error.message
       );
     }
   },
 
-  // =========================================================
-  // PAGE NAVIGATION
-  // =========================================================
+  // ==========================================
+  // PAGE REPLY
+  // ==========================================
   onReply: async function ({
-    api,
     event,
     Reply,
     message
   }) {
-    try {
-      // Only original user can navigate
-      if (
-        Reply.author &&
-        String(event.senderID) !==
-          String(Reply.author)
-      ) {
-        return;
-      }
+    if (
+      Reply.author &&
+      String(event.senderID) !==
+        String(Reply.author)
+    ) {
+      return;
+    }
 
-      const page = parseInt(
+    const page =
+      parseInt(
         String(event.body || "").trim()
       );
 
-      if (
-        !Number.isInteger(page) ||
-        page < 1 ||
-        page > Reply.splitPage.length
-      ) {
-        return message.reply(
-          `❌ Invalid page.\n\nAvailable pages: 1-${Reply.splitPage.length}`
-        );
-      }
+    if (
+      !Number.isInteger(page) ||
+      page < 1 ||
+      page > Reply.splitPage.length
+    ) {
+      return message.reply(
+        `❌ Invalid page.\nAvailable: 1-${Reply.splitPage.length}`
+      );
+    }
 
-      const pageData =
-        Reply.splitPage[page - 1];
+    const pageData =
+      Reply.splitPage[page - 1];
 
-      const pageMessageTotal =
-        pageData.reduce(
-          (sum, user) =>
-            sum + (Number(user.count) || 0),
-          0
-        );
+    const pageTotal =
+      pageData.reduce(
+        (sum, user) =>
+          sum + (Number(user.count) || 0),
+        0
+      );
 
-      let msg = "";
+    let msg =
+      "╭───────────────╮\n" +
+      "│  MESSAGE RANK  │\n" +
+      "╰───────────────╯\n\n";
 
-      msg += "╭───────────────╮\n";
-      msg += "│  MESSAGE RANK  │\n";
-      msg += "╰───────────────╯\n\n";
-
-      msg += `🌐 Group Total Message: ${Number(
+    msg +=
+      `🌐 Group Total Message: ${Number(
         Reply.groupTotalMessages || 0
       ).toLocaleString()}\n`;
 
-      msg += `👥 Active Member Message: ${Number(
+    msg +=
+      `👥 Active Member Message: ${Number(
         Reply.activeMemberMessages || 0
       ).toLocaleString()}\n`;
 
-      msg += `📄 This Page Message: ${pageMessageTotal.toLocaleString()}\n`;
+    msg +=
+      `📄 This Page Message: ${pageTotal.toLocaleString()}\n`;
 
-      if (
-        Number(Reply.manualCount || 0) > 0
-      ) {
-        msg += `➕ Added Message: ${Number(
+    if (Number(Reply.manualCount || 0) > 0) {
+      msg +=
+        `➕ Added Message: ${Number(
           Reply.manualCount
         ).toLocaleString()}\n`;
-      }
+    }
 
-      msg += "\n";
+    msg +=
+      "╭────────────────────────╮\n";
 
-      pageData.forEach((user, index) => {
-        const globalIndex =
+    pageData.forEach(
+      (user, index) => {
+        const position =
           (page - 1) * 50 +
           index +
           1;
@@ -374,46 +363,37 @@ module.exports = {
           user.nickname ||
           "Unknown User";
 
-        const leftMark =
+        const left =
           user.inGroup === false
             ? " 🚪"
             : "";
 
         let medal = "▫️";
 
-        if (globalIndex === 1) {
+        if (position === 1)
           medal = "🥇";
-        } else if (globalIndex === 2) {
+        else if (position === 2)
           medal = "🥈";
-        } else if (globalIndex === 3) {
+        else if (position === 3)
           medal = "🥉";
-        }
 
-        msg += `${medal} ${name}${leftMark}: ${count.toLocaleString()}\n`;
-      });
-
-      msg += "\n";
-      msg += "╭────────────────────╮\n";
-      msg += `│ Page [${page}/${Reply.splitPage.length}] │\n`;
-      msg += "╰────────────────────╯";
-
-      if (Reply.splitPage.length > 1) {
         msg +=
-          "\n\nReply to this message with the page number to view more.";
+          `${medal} ${name}${left}: ${count.toLocaleString()}\n`;
       }
+    );
 
-      return message.reply(msg);
-    } catch (error) {
-      console.error(
-        "[COUNT] REPLY ERROR:",
-        error
-      );
-    }
+    msg +=
+      "╰────────────────────────╯\n";
+
+    msg +=
+      `Page [${page}/${Reply.splitPage.length}]`;
+
+    return message.reply(msg);
   },
 
-  // =========================================================
-  // COUNT EVERY MESSAGE
-  // =========================================================
+  // ==========================================
+  // COUNT MESSAGES
+  // ==========================================
   onChat: async function ({
     event,
     threadsData,
@@ -423,31 +403,28 @@ module.exports = {
       const threadID = event.threadID;
       const senderID = event.senderID;
 
-      if (!threadID || !senderID) {
+      if (!threadID || !senderID)
         return;
-      }
+
+      // GET FULL THREAD DATA
+      const threadData =
+        await threadsData.get(threadID);
 
       let members =
-        await threadsData.get(
-          threadID,
-          "members"
+        Array.isArray(threadData?.members)
+          ? threadData.members
+          : [];
+
+      const userID =
+        String(senderID);
+
+      let member =
+        members.find(
+          user =>
+            user &&
+            String(user.userID) === userID
         );
 
-      if (!Array.isArray(members)) {
-        members = [];
-      }
-
-      const userID = String(senderID);
-
-      let member = members.find(
-        user =>
-          user &&
-          String(user.userID) === userID
-      );
-
-      // ==============================
-      // NEW MEMBER
-      // ==============================
       if (!member) {
         let name = "Unknown User";
 
@@ -465,36 +442,14 @@ module.exports = {
           inGroup: true,
           count: 1
         });
-      }
-
-      // ==============================
-      // EXISTING MEMBER
-      // ==============================
-      else {
+      } else {
         member.count =
-          (Number(member.count) || 0) +
-          1;
+          (Number(member.count) || 0) + 1;
 
-        // If they send a message,
-        // they are currently in the group.
         member.inGroup = true;
-
-        if (
-          !member.name ||
-          member.name === "Unknown User"
-        ) {
-          try {
-            member.name =
-              await usersData.getName(
-                senderID
-              );
-          } catch (e) {}
-        }
       }
 
-      // ==============================
-      // SAVE
-      // ==============================
+      // SAVE INSIDE members
       await threadsData.set(
         threadID,
         members,
@@ -502,7 +457,7 @@ module.exports = {
       );
     } catch (error) {
       console.error(
-        "[COUNT] onChat ERROR:",
+        "[COUNT onChat ERROR]",
         error.message
       );
     }
