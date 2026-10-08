@@ -2,919 +2,509 @@ module.exports = {
   config: {
     name: "count",
     aliases: ["c"],
-    version: "3.1",
-    author: "NTKhang & Rakib",
+    version: "1.2",
+    author: "Rakib",
     countDown: 5,
     role: 0,
-
-    description: {
-      vi: "Xem số lượng tin nhắn của tất cả thành viên hoặc bản thân",
-      en: "View the number of messages of all members or yourself"
-    },
-
-    category: "box chat",
-
-    guide: {
-      vi:
-        "   {pn}: dùng để xem số lượng tin nhắn của bạn" +
-        "\n   {pn} @tag: dùng để xem số lượng tin nhắn của những người được tag" +
-        "\n   {pn} reply: reply to someone's message to view their count" +
-        "\n   {pn} [số]: xem thông tin của người đứng hạng đó" +
-        "\n   {pn} all: dùng để xem số lượng tin nhắn của tất cả thành viên",
-
-      en:
-        "   {pn}: used to view your message count" +
-        "\n   {pn} @tag: used to view message count of tagged users" +
-        "\n   {pn} reply: reply to someone's message to view their count" +
-        "\n   {pn} [number]: view stats of a specific rank" +
-        "\n   {pn} all: used to view message count of all members"
-    }
+    shortDescription: "Message count",
+    longDescription: "Show member message ranking and group total message",
+    category: "group",
+    guide: "{pn} all"
   },
-
-  langs: {
-    endMessage:
-      "\n💡 𝐌𝐞𝐦𝐛𝐞𝐫𝐬 𝐧𝐨𝐭 𝐨𝐧 𝐭𝐡𝐞 𝐥𝐢𝐬𝐭 𝐡𝐚𝐯𝐞𝐧'𝐭 𝐬𝐞𝐧𝐭 𝐚𝐧𝐲 𝐦𝐞𝐬𝐬𝐚𝐠𝐞𝐬 𝐲𝐞𝐭.",
-
-    page:
-      "\n📖 𝐏𝐚𝐠𝐞 [%1/%2]",
-
-    reply:
-      "💬 𝐑𝐞𝐩𝐥𝐲 𝐭𝐨 𝐭𝐡𝐢𝐬 𝐦𝐞𝐬𝐬𝐚𝐠𝐞 𝐰𝐢𝐭𝐡 𝐚 𝐩𝐚𝐠𝐞 𝐧𝐮𝐦𝐛𝐞𝐫 𝐭𝐨 𝐯𝐢𝐞𝐰 𝐦𝐨𝐫𝐞",
-
-    result:
-      "👤 %1 \n  ↳ 🏅 𝐑𝐚𝐧𝐤: %2 | 💬 𝐌𝐞𝐬𝐬𝐚𝐠𝐞𝐬: %3",
-
-    invalidPage:
-      "❌ 𝐈𝐧𝐯𝐚𝐥𝐢𝐝 𝐩𝐚𝐠𝐞 𝐧𝐮𝐦𝐛𝐞𝐫! 𝐏𝐥𝐞𝐚𝐬𝐞 𝐭𝐫𝐲 𝐚𝐠𝐚𝐢𝐧."
-  },
-
-  // ============================================================
-  // ON START
-  // ============================================================
 
   onStart: async function ({
-    args,
-    threadsData,
-    message,
-    event,
     api,
-    commandName,
-    getLang
+    event,
+    args,
+    message,
+    threadsData,
+    usersData
   }) {
-    const {
-      threadID,
-      senderID,
-      type,
-      messageReply
-    } = event;
-
-    // ==========================================================
-    // GET THREAD MEMBERS
-    // ==========================================================
-
-    let threadData = null;
+    const threadID = event.threadID;
 
     try {
-      threadData =
-        await threadsData.get(threadID);
-    } catch {
-      threadData = null;
-    }
+      // ==============================
+      // GET MEMBERS DATA
+      // ==============================
+      let members = await threadsData.get(threadID, "members");
 
-    let members =
-      Array.isArray(threadData?.members)
-        ? threadData.members
-        : [];
-
-    // ==========================================================
-    // GET CURRENT GROUP PARTICIPANTS
-    // ==========================================================
-
-    let usersInGroup = [];
-
-    try {
-      const threadInfo =
-        await api.getThreadInfo(threadID);
-
-      if (
-        Array.isArray(
-          threadInfo?.participantIDs
-        )
-      ) {
-        usersInGroup =
-          threadInfo.participantIDs
-            .map(String);
-      }
-    } catch {
-      usersInGroup = [];
-    }
-
-    // ==========================================================
-    // FALLBACK
-    // ==========================================================
-
-    if (
-      usersInGroup.length === 0
-    ) {
-      usersInGroup =
-        members
-          .filter(
-            user =>
-              user &&
-              user.userID != null &&
-              user.inGroup !== false
-          )
-          .map(
-            user =>
-              String(user.userID)
-          );
-    }
-
-    // ==========================================================
-    // ALL HISTORY RANKING
-    //
-    // Current + left member সবাই থাকবে।
-    // ==========================================================
-
-    const arraySortAll = [];
-
-    let groupTotalMessages = 0;
-
-    const charac =
-      "️️️️️️️️️️️️️️️️️";
-
-    for (const user of members) {
-      if (
-        !user ||
-        user.userID == null
-      ) {
-        continue;
+      if (!Array.isArray(members)) {
+        members = [];
       }
 
-      const userID =
-        String(user.userID);
+      // ==============================
+      // GET CURRENT GROUP MEMBERS
+      // ==============================
+      let participantIDs = [];
 
-      const msgCount =
-        Number(user.count) || 0;
+      try {
+        const threadInfo = await api.getThreadInfo(threadID);
 
-      const rawName =
-        user.name != null
-          ? String(user.name)
-          : `User ${userID}`;
+        if (Array.isArray(threadInfo?.participantIDs)) {
+          participantIDs = threadInfo.participantIDs.map(String);
+        }
+      } catch (err) {
+        console.error(
+          "[COUNT] Failed to get participantIDs:",
+          err.message
+        );
+      }
 
-      const name =
-        rawName.includes(charac)
-          ? `Uid: ${userID}`
-          : rawName;
+      // ==============================
+      // UPDATE IN-GROUP STATUS
+      // ==============================
+      const arraySortAll = members
+        .filter(user => user && user.userID)
+        .map(user => {
+          const userID = String(user.userID);
 
-      const inGroup =
-        usersInGroup.length > 0
-          ? usersInGroup.includes(userID)
-          : user.inGroup !== false;
+          let inGroup;
 
-      arraySortAll.push({
-        name,
-        count: msgCount,
-        uid: userID,
-        inGroup
-      });
+          if (participantIDs.length > 0) {
+            inGroup = participantIDs.includes(userID);
+          } else {
+            inGroup = user.inGroup !== false;
+          }
 
-      groupTotalMessages +=
-        msgCount;
-    }
+          return {
+            ...user,
+            userID,
+            count: Number(user.count) || 0,
+            inGroup
+          };
+        });
 
-    // ==========================================================
-    // SORT ALL
-    // ==========================================================
-
-    arraySortAll.sort(
-      (a, b) =>
-        (Number(b.count) || 0) -
-        (Number(a.count) || 0)
-    );
-
-    // ==========================================================
-    // GLOBAL/HISTORY RANK
-    // ==========================================================
-
-    let allRank = 1;
-
-    for (
-      const item of arraySortAll
-    ) {
-      item.stt = allRank++;
-    }
-
-    // ==========================================================
-    // CURRENT ACTIVE MEMBER RANKING
-    // ==========================================================
-
-    const arraySort =
-      arraySortAll.filter(
-        item =>
-          item.inGroup === true
+      // ==============================
+      // CURRENT ACTIVE MEMBERS
+      // ==============================
+      const arraySort = arraySortAll.filter(
+        user => user.inGroup === true
       );
 
-    // ==========================================================
-    // ACTIVE MEMBER TOTAL MESSAGE
-    // ==========================================================
+      // ==============================
+      // SORT ALL MEMBERS
+      // Highest count first
+      // ==============================
+      arraySortAll.sort((a, b) => {
+        return (
+          (Number(b.count) || 0) -
+          (Number(a.count) || 0)
+        );
+      });
 
-    const activeMemberMessages =
-      arraySort.reduce(
-        (total, item) =>
-          total +
-          (Number(item.count) || 0),
+      // ==============================
+      // SORT ACTIVE MEMBERS
+      // ==============================
+      arraySort.sort((a, b) => {
+        return (
+          (Number(b.count) || 0) -
+          (Number(a.count) || 0)
+        );
+      });
+
+      // ==============================
+      // MEMBER TOTAL
+      // ==============================
+      const memberTotal = arraySortAll.reduce(
+        (sum, user) =>
+          sum + (Number(user.count) || 0),
         0
       );
 
-    // ==========================================================
-    // CURRENT MEMBER RANK
-    // ==========================================================
+      // ==============================
+      // MANUAL GROUP COUNT
+      //
+      // addcount command saves here:
+      // threadsData -> manualCount
+      // ==============================
+      let manualCount =
+        await threadsData.get(threadID, "manualCount");
 
-    let currentRank = 1;
+      manualCount = Number(manualCount) || 0;
 
-    for (
-      const item of arraySort
-    ) {
-      item.stt = currentRank++;
-    }
+      // ==============================
+      // FINAL GROUP TOTAL
+      // ==============================
+      const groupTotalMessages =
+        memberTotal + manualCount;
 
-    // ==========================================================
-    // REPLY TO USER
-    // ==========================================================
-
-    if (
-      type === "message_reply" &&
-      messageReply?.senderID
-    ) {
-      const targetID =
-        String(
-          messageReply.senderID
+      // ==============================
+      // ACTIVE MEMBER TOTAL
+      // ==============================
+      const activeMemberMessages =
+        arraySort.reduce(
+          (sum, user) =>
+            sum + (Number(user.count) || 0),
+          0
         );
 
-      let findUser =
-        arraySort.find(
-          item =>
-            String(item.uid) ===
-            targetID
-        );
-
-      // left member হলেও data পাওয়া যাবে
-      if (!findUser) {
-        findUser =
-          arraySortAll.find(
-            item =>
-              String(item.uid) ===
-              targetID
-          );
-      }
-
-      if (findUser) {
-        const msg =
-          `❀━━━{  𝐔𝐒𝐄𝐑 𝐑𝐀𝐍𝐊𝐈𝐍𝐆  }━━━❀\n` +
-          `👤 ${findUser.name}\n` +
-          `  ↳ 🏅 𝐑𝐚𝐧𝐤: ${findUser.stt} | 💬 𝐌𝐞𝐬𝐬𝐚𝐠𝐞𝐬: ${findUser.count}\n` +
-          `❀━━━━━━━━━━━━━━━━━━━❀`;
-
-        return message.reply(msg);
-      }
-
-      return message.reply(
-        "❌ 𝐔𝐬𝐞𝐫 𝐝𝐚𝐭𝐚 𝐧𝐨𝐭 𝐟𝐨𝐮𝐧𝐝!"
-      );
-    }
-
-    // ==========================================================
-    // ARGUMENTS
-    // ==========================================================
-
-    if (args?.[0]) {
-      const firstArg =
-        String(args[0]);
-
-      // ========================================================
-      // RANK NUMBER
-      // ========================================================
-
-      if (!isNaN(firstArg)) {
-        const rankIndex =
-          parseInt(
-            firstArg,
-            10
-          );
-
-        if (
-          rankIndex < 1 ||
-          rankIndex > arraySort.length
-        ) {
-          return message.reply(
-            `❌ এই গ্রুপে মোট ${arraySort.length} জন active member আছেন। ` +
-            `১ থেকে ${arraySort.length}-এর মধ্যে সংখ্যা দিন!`
-          );
-        }
-
-        const findUser =
-          arraySort[
-            rankIndex - 1
-          ];
-
-        const msg =
-          `❀━━━{  𝐑𝐀𝐍𝐊 ${rankIndex} 𝐒𝐓𝐀𝐓𝐒  }━━━❀\n` +
-          `👤 ${findUser.name}\n` +
-          `  ↳ 🏅 𝐑𝐚𝐧𝐤: ${findUser.stt} | 💬 𝐌𝐞𝐬𝐬𝐚𝐠𝐞𝐬: ${findUser.count}\n` +
-          `❀━━━━━━━━━━━━━━━━━━━❀`;
-
-        return message.reply(msg);
-      }
-
-      // ========================================================
-      // ALL
-      // ========================================================
+      // ==============================
+      // COMMAND CHECK
+      // ==============================
+      const subCommand = String(
+        args[0] || ""
+      ).toLowerCase();
 
       if (
-        firstArg.toLowerCase() ===
-        "all"
+        subCommand !== "all" &&
+        subCommand !== ""
       ) {
-        let page =
-          parseInt(
-            args[1],
-            10
-          );
-
-        if (isNaN(page))
-          page = 1;
-
-        if (
-          arraySortAll.length === 0
-        ) {
-          return message.reply(
-            "❌ 𝐍𝐨 𝐦𝐞𝐦𝐛𝐞𝐫 𝐝𝐚𝐭𝐚 𝐟𝐨𝐮𝐧𝐝."
-          );
-        }
-
-        // ======================================================
-        // SPLIT ALL HISTORY
-        // ======================================================
-
-        const splitPage =
-          global.utils.splitPage(
-            arraySortAll,
-            50
-          );
-
-        if (
-          page < 1 ||
-          page > splitPage.totalPage
-        ) {
-          return message.reply(
-            getLang(
-              "invalidPage"
-            )
-          );
-        }
-
-        // ======================================================
-        // CURRENT PAGE
-        // ======================================================
-
-        const currentPageData =
-          splitPage.allPage[
-            page - 1
-          ] || [];
-
-        let thisPageMessages = 0;
-
-        let listMsg = "";
-
-        for (
-          const item of
-            currentPageData
-        ) {
-          const count =
-            Number(item.count) || 0;
-
-          if (count <= 0)
-            continue;
-
-          const medal =
-            item.stt === 1
-              ? "🥇"
-              : item.stt === 2
-              ? "🥈"
-              : item.stt === 3
-              ? "🥉"
-              : `🔹 [${item.stt}]`;
-
-          // left member indicator
-          const status =
-            item.inGroup
-              ? ""
-              : " 🚪";
-
-          listMsg +=
-            `${medal} ${item.name}${status}: ${count}\n`;
-
-          thisPageMessages +=
-            count;
-        }
-
-        // ======================================================
-        // FINAL ALL MESSAGE
-        // ======================================================
-
-        const msg =
-          `❀━━━{  𝐌𝐄𝐒𝐒𝐀𝐆𝐄 𝐑𝐀𝐍𝐊  }━━━❀\n` +
-
-          `🌐 𝐆𝐫𝐨𝐮𝐩 𝐓𝐨𝐭𝐚𝐥 𝐌𝐞𝐬𝐬𝐚𝐠𝐞: ${groupTotalMessages}\n` +
-
-          `👥 𝐀𝐜𝐭𝐢𝐯𝐞 𝐌𝐞𝐦𝐛𝐞𝐫 𝐌𝐞𝐬𝐬𝐚𝐠𝐞: ${activeMemberMessages}\n` +
-
-          `📄 𝐓𝐡𝐢𝐬 𝐏𝐚𝐠𝐞 𝐌𝐞𝐬𝐬𝐚𝐠𝐞: ${thisPageMessages}\n` +
-
-          `❀━━━━━━━━━━━━━━━━━━━❀\n` +
-
-          listMsg +
-
-          `❀━━━━━━━━━━━━━━━━━━━❀` +
-
-          getLang(
-            "page",
-            page,
-            splitPage.totalPage
-          ) +
-
-          `\n${getLang(
-            "reply"
-          )}` +
-
-          `${getLang(
-            "endMessage"
-          )}`;
-
         return message.reply(
-          msg,
-          (err, info) => {
-            if (err)
-              return message.err(err);
-
-            if (
-              !info?.messageID
-            )
-              return;
-
-            global.GoatBot.onReply.set(
-              info.messageID,
-              {
-                commandName,
-
-                messageID:
-                  info.messageID,
-
-                splitPage,
-
-                groupTotalMessages,
-
-                activeMemberMessages,
-
-                author:
-                  String(senderID)
-              }
-            );
-          }
+          "❌ Invalid command.\n\n" +
+          "Use:\n" +
+          `${global.GoatBot?.config?.prefix || "."}count all`
         );
       }
 
-      // ========================================================
-      // MENTION
-      // ========================================================
+      // ==============================
+      // PAGE DATA
+      // ==============================
+      const splitPage =
+        global.utils.splitPage(
+          arraySortAll,
+          50
+        );
 
-      if (
-        event.mentions &&
-        typeof event.mentions ===
-          "object" &&
-        Object.keys(
-          event.mentions
-        ).length > 0
-      ) {
-        let msg =
-          "❀━━━{  𝐌𝐄𝐍𝐓𝐈𝐎𝐍 𝐒𝐓𝐀𝐓𝐒  }━━━❀";
+      if (!splitPage.length) {
+        return message.reply(
+          "📊 No message count data found."
+        );
+      }
 
-        let found = false;
+      const page = 1;
 
-        for (
-          const id of Object.keys(
-            event.mentions
-          )
-        ) {
-          const targetID =
-            String(id);
+      // ==============================
+      // BUILD PAGE
+      // ==============================
+      const buildMessage = (
+        currentPage,
+        pageData
+      ) => {
+        let msg = "";
 
-          let findUser =
-            arraySort.find(
-              item =>
-                String(item.uid) ===
-                targetID
-            );
+        msg += "╭───────────────╮\n";
+        msg += "│  MESSAGE RANK  │\n";
+        msg += "╰───────────────╯\n\n";
 
-          // left user হলেও count দেখাবে
-          if (!findUser) {
-            findUser =
-              arraySortAll.find(
-                item =>
-                  String(item.uid) ===
-                  targetID
-              );
+        msg += `🌐 Group Total Message: ${groupTotalMessages.toLocaleString()}\n`;
+        msg += `👥 Active Member Message: ${activeMemberMessages.toLocaleString()}\n`;
+        msg += `📄 This Page Message: ${pageData.reduce(
+          (sum, user) =>
+            sum + (Number(user.count) || 0),
+          0
+        ).toLocaleString()}\n`;
+
+        if (manualCount > 0) {
+          msg += `➕ Added Message: ${manualCount.toLocaleString()}\n`;
+        }
+
+        msg += "\n";
+
+        pageData.forEach((user, index) => {
+          const globalIndex =
+            (currentPage - 1) * 50 +
+            index +
+            1;
+
+          const count =
+            Number(user.count) || 0;
+
+          const name =
+            user.name ||
+            user.nickname ||
+            "Unknown User";
+
+          const leftMark =
+            user.inGroup === false
+              ? " 🚪"
+              : "";
+
+          let medal = "▫️";
+
+          if (globalIndex === 1) {
+            medal = "🥇";
+          } else if (globalIndex === 2) {
+            medal = "🥈";
+          } else if (globalIndex === 3) {
+            medal = "🥉";
           }
 
-          if (findUser) {
-            found = true;
+          msg += `${medal} ${name}${leftMark}: ${count.toLocaleString()}\n`;
+        });
 
-            msg +=
-              `\n${getLang(
-                "result",
-                findUser.name,
-                findUser.stt,
-                findUser.count
-              )}`;
-          }
+        msg += "\n";
+        msg += "╭────────────────────╮\n";
+        msg += `│ Page [${currentPage}/${splitPage.length}] │\n`;
+        msg += "╰────────────────────╯\n";
+
+        if (splitPage.length > 1) {
+          msg +=
+            "\nReply to this message with the page number to view more.";
         }
 
         msg +=
-          "\n❀━━━━━━━━━━━━━━━━━━━❀";
+          "\nThose who do not have a name in the list have not sent any messages.";
 
-        if (!found) {
-          return message.reply(
-            "❌ 𝐌𝐞𝐧𝐭𝐢𝐨𝐧𝐞𝐝 𝐮𝐬𝐞𝐫 𝐝𝐚𝐭𝐚 𝐧𝐨𝐭 𝐟𝐨𝐮𝐧𝐝!"
-          );
-        }
+        return msg;
+      };
 
-        return message.reply(msg);
-      }
-    }
-
-    // ==========================================================
-    // OWN COUNT
-    // ==========================================================
-
-    const findUser =
-      arraySort.find(
-        item =>
-          String(item.uid) ===
-          String(senderID)
-      );
-
-    if (findUser) {
-      const msg =
-        `❀━━━{  𝐘𝐎𝐔𝐑 𝐑𝐀𝐍𝐊𝐈𝐍𝐆  }━━━❀\n` +
-        `👤 ${findUser.name}\n` +
-        `  ↳ 🏅 𝐑𝐚𝐧𝐤: ${findUser.stt} | 💬 𝐌𝐞𝐬𝐬𝐚𝐠𝐞𝐬: ${findUser.count}\n` +
-        `❀━━━━━━━━━━━━━━━━━━━❀`;
-
-      return message.reply(msg);
-    }
-
-    // ==========================================================
-    // OLD DATA
-    // ==========================================================
-
-    const oldUser =
-      arraySortAll.find(
-        item =>
-          String(item.uid) ===
-          String(senderID)
-      );
-
-    if (oldUser) {
-      return message.reply(
-        `👤 ${oldUser.name}\n` +
-        `💬 আপনার saved message count: ${oldUser.count}`
-      );
-    }
-
-    return message.reply(
-      "❌ 𝐘𝐨𝐮𝐫 𝐝𝐚𝐭𝐚 𝐧𝐨𝐭 𝐟𝐨𝐮𝐧𝐝!"
-    );
-  },
-
-  // ============================================================
-  // ON REPLY
-  // ============================================================
-
-  onReply: ({
-    message,
-    event,
-    Reply,
-    commandName,
-    getLang
-  }) => {
-    const senderID =
-      String(event.senderID);
-
-    const body =
-      String(event.body || "");
-
-    const {
-      author,
-      splitPage,
-      groupTotalMessages,
-      activeMemberMessages
-    } = Reply;
-
-    // শুধু command চালানো user page change করবে
-    if (
-      String(author) !==
-      senderID
-    ) {
-      return;
-    }
-
-    if (
-      !splitPage ||
-      !Array.isArray(
-        splitPage.allPage
-      )
-    ) {
-      return message.reply(
-        getLang(
-          "invalidPage"
-        )
-      );
-    }
-
-    const page =
-      parseInt(
-        body,
-        10
-      );
-
-    if (
-      isNaN(page) ||
-      page < 1 ||
-      page > splitPage.totalPage
-    ) {
-      return message.reply(
-        getLang(
-          "invalidPage"
-        )
-      );
-    }
-
-    const currentPageData =
-      splitPage.allPage[
-        page - 1
-      ] || [];
-
-    let thisPageMessages = 0;
-
-    let listMsg = "";
-
-    // ==========================================================
-    // PAGE DATA
-    // ==========================================================
-
-    for (
-      const item of
-        currentPageData
-    ) {
-      const count =
-        Number(item.count) || 0;
-
-      if (count <= 0)
-        continue;
-
-      const medal =
-        item.stt === 1
-          ? "🥇"
-          : item.stt === 2
-          ? "🥈"
-          : item.stt === 3
-          ? "🥉"
-          : `🔹 [${item.stt}]`;
-
-      const status =
-        item.inGroup
-          ? ""
-          : " 🚪";
-
-      listMsg +=
-        `${medal} ${item.name}${status}: ${count}\n`;
-
-      thisPageMessages +=
-        count;
-    }
-
-    // ==========================================================
-    // REPLY MESSAGE
-    // ==========================================================
-
-    const msg =
-      `❀━━━{  𝐌𝐄𝐒𝐒𝐀𝐆𝐄 𝐑𝐀𝐍𝐊  }━━━❀\n` +
-
-      `🌐 𝐆𝐫𝐨𝐮𝐩 𝐓𝐨𝐭𝐚𝐥 𝐌𝐞𝐬𝐬𝐚𝐠𝐞: ${groupTotalMessages}\n` +
-
-      `👥 𝐀𝐜𝐭𝐢𝐯𝐞 𝐌𝐞𝐦𝐛𝐞𝐫 𝐌𝐞𝐬𝐬𝐚𝐠𝐞: ${activeMemberMessages}\n` +
-
-      `📄 𝐓𝐡𝐢𝐬 𝐏𝐚𝐠𝐞 𝐌𝐞𝐬𝐬𝐚𝐠𝐞: ${thisPageMessages}\n` +
-
-      `❀━━━━━━━━━━━━━━━━━━━❀\n` +
-
-      listMsg +
-
-      `❀━━━━━━━━━━━━━━━━━━━❀` +
-
-      getLang(
-        "page",
+      const msg = buildMessage(
         page,
-        splitPage.totalPage
-      ) +
-
-      "\n" +
-
-      getLang(
-        "reply"
-      ) +
-
-      getLang(
-        "endMessage"
+        splitPage[0]
       );
 
-    message.reply(
-      msg,
-      (err, info) => {
-        if (err)
-          return message.err(err);
+      // ==============================
+      // SEND MESSAGE
+      // ==============================
+      const sentMessage = await message.reply(msg);
 
-        if (
-          !info?.messageID
-        )
-          return;
-
-        // পুরোনো page message remove
-        try {
-          if (
-            Reply.messageID
-          ) {
-            message.unsend(
-              Reply.messageID,
-              event.threadID
-            );
-          }
-        } catch {}
-
-        // নতুন reply listener
+      // ==============================
+      // REPLY LISTENER
+      // ==============================
+      if (
+        splitPage.length > 1 &&
+        sentMessage?.messageID
+      ) {
         global.GoatBot.onReply.set(
-          info.messageID,
+          sentMessage.messageID,
           {
-            commandName,
-
-            messageID:
-              info.messageID,
-
+            commandName: this.config.name,
+            author: event.senderID,
+            threadID,
             splitPage,
-
             groupTotalMessages,
-
             activeMemberMessages,
-
-            author:
-              senderID
+            manualCount
           }
         );
       }
-    );
+    } catch (error) {
+      console.error(
+        "[COUNT] ERROR:",
+        error
+      );
+
+      return message.reply(
+        "❌ Failed to get message count.\n\n" +
+        `Error: ${error.message}`
+      );
+    }
   },
 
-  // ============================================================
-  // ON CHAT
-  //
-  // User message দিলে count +1 হবে।
-  // User leave করলে এই record delete হবে না।
-  // আবার join করলে একই record পাওয়া যাবে।
-  // ============================================================
-
-  onChat: async ({
-    usersData,
-    threadsData,
-    event
-  }) => {
-    const {
-      senderID,
-      threadID
-    } = event;
-
-    if (
-      !senderID ||
-      !threadID
-    ) {
-      return;
-    }
-
-    let members = [];
-
-    // ==========================================================
-    // LOAD MEMBERS
-    // ==========================================================
-
+  // =========================================================
+  // PAGE NAVIGATION
+  // =========================================================
+  onReply: async function ({
+    api,
+    event,
+    Reply,
+    message
+  }) {
     try {
-      const data =
+      // Only original user can navigate
+      if (
+        Reply.author &&
+        String(event.senderID) !==
+          String(Reply.author)
+      ) {
+        return;
+      }
+
+      const page = parseInt(
+        String(event.body || "").trim()
+      );
+
+      if (
+        !Number.isInteger(page) ||
+        page < 1 ||
+        page > Reply.splitPage.length
+      ) {
+        return message.reply(
+          `❌ Invalid page.\n\nAvailable pages: 1-${Reply.splitPage.length}`
+        );
+      }
+
+      const pageData =
+        Reply.splitPage[page - 1];
+
+      const pageMessageTotal =
+        pageData.reduce(
+          (sum, user) =>
+            sum + (Number(user.count) || 0),
+          0
+        );
+
+      let msg = "";
+
+      msg += "╭───────────────╮\n";
+      msg += "│  MESSAGE RANK  │\n";
+      msg += "╰───────────────╯\n\n";
+
+      msg += `🌐 Group Total Message: ${Number(
+        Reply.groupTotalMessages || 0
+      ).toLocaleString()}\n`;
+
+      msg += `👥 Active Member Message: ${Number(
+        Reply.activeMemberMessages || 0
+      ).toLocaleString()}\n`;
+
+      msg += `📄 This Page Message: ${pageMessageTotal.toLocaleString()}\n`;
+
+      if (
+        Number(Reply.manualCount || 0) > 0
+      ) {
+        msg += `➕ Added Message: ${Number(
+          Reply.manualCount
+        ).toLocaleString()}\n`;
+      }
+
+      msg += "\n";
+
+      pageData.forEach((user, index) => {
+        const globalIndex =
+          (page - 1) * 50 +
+          index +
+          1;
+
+        const count =
+          Number(user.count) || 0;
+
+        const name =
+          user.name ||
+          user.nickname ||
+          "Unknown User";
+
+        const leftMark =
+          user.inGroup === false
+            ? " 🚪"
+            : "";
+
+        let medal = "▫️";
+
+        if (globalIndex === 1) {
+          medal = "🥇";
+        } else if (globalIndex === 2) {
+          medal = "🥈";
+        } else if (globalIndex === 3) {
+          medal = "🥉";
+        }
+
+        msg += `${medal} ${name}${leftMark}: ${count.toLocaleString()}\n`;
+      });
+
+      msg += "\n";
+      msg += "╭────────────────────╮\n";
+      msg += `│ Page [${page}/${Reply.splitPage.length}] │\n`;
+      msg += "╰────────────────────╯";
+
+      if (Reply.splitPage.length > 1) {
+        msg +=
+          "\n\nReply to this message with the page number to view more.";
+      }
+
+      return message.reply(msg);
+    } catch (error) {
+      console.error(
+        "[COUNT] REPLY ERROR:",
+        error
+      );
+    }
+  },
+
+  // =========================================================
+  // COUNT EVERY MESSAGE
+  // =========================================================
+  onChat: async function ({
+    event,
+    threadsData,
+    usersData
+  }) {
+    try {
+      const threadID = event.threadID;
+      const senderID = event.senderID;
+
+      if (!threadID || !senderID) {
+        return;
+      }
+
+      let members =
         await threadsData.get(
           threadID,
           "members"
         );
 
-      members =
-        Array.isArray(data)
-          ? data
-          : [];
-    } catch {
-      members = [];
-    }
+      if (!Array.isArray(members)) {
+        members = [];
+      }
 
-    const sender =
-      String(senderID);
+      const userID = String(senderID);
 
-    // ==========================================================
-    // FIND USER
-    // ==========================================================
-
-    let findMember =
-      members.find(
+      let member = members.find(
         user =>
           user &&
-          String(user.userID) ===
-            sender
+          String(user.userID) === userID
       );
 
-    // ==========================================================
-    // NEW MEMBER
-    // ==========================================================
+      // ==============================
+      // NEW MEMBER
+      // ==============================
+      if (!member) {
+        let name = "Unknown User";
 
-    if (!findMember) {
-      let name =
-        "Unknown User";
-
-      try {
-        name =
-          await usersData.getName(
-            senderID
-          );
-      } catch {}
-
-      members.push({
-        userID: sender,
-
-        name,
-
-        nickname: null,
-
-        inGroup: true,
-
-        count: 1
-      });
-    }
-
-    // ==========================================================
-    // EXISTING MEMBER
-    // ==========================================================
-
-    else {
-      findMember.count =
-        (Number(
-          findMember.count
-        ) || 0) + 1;
-
-      // আবার active
-      findMember.inGroup =
-        true;
-
-      // নাম update
-      if (
-        !findMember.name ||
-        findMember.name ===
-          "Unknown User"
-      ) {
         try {
-          findMember.name =
+          name =
             await usersData.getName(
               senderID
             );
-        } catch {}
+        } catch (e) {}
+
+        members.push({
+          userID,
+          name,
+          nickname: null,
+          inGroup: true,
+          count: 1
+        });
       }
-    }
 
-    // ==========================================================
-    // SAVE
-    //
-    // IMPORTANT:
-    // Member record কখনো delete করছি না।
-    // ==========================================================
+      // ==============================
+      // EXISTING MEMBER
+      // ==============================
+      else {
+        member.count =
+          (Number(member.count) || 0) +
+          1;
 
-    try {
+        // If they send a message,
+        // they are currently in the group.
+        member.inGroup = true;
+
+        if (
+          !member.name ||
+          member.name === "Unknown User"
+        ) {
+          try {
+            member.name =
+              await usersData.getName(
+                senderID
+              );
+          } catch (e) {}
+        }
+      }
+
+      // ==============================
+      // SAVE
+      // ==============================
       await threadsData.set(
         threadID,
         members,
         "members"
       );
-    } catch {}
+    } catch (error) {
+      console.error(
+        "[COUNT] onChat ERROR:",
+        error.message
+      );
+    }
   }
 };
