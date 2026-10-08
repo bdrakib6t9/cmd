@@ -2,7 +2,7 @@ module.exports = {
   config: {
     name: "count",
     aliases: ["c"],
-    version: "3.0",
+    version: "3.1",
     author: "NTKhang & Rakib",
     countDown: 5,
     role: 0,
@@ -33,7 +33,7 @@ module.exports = {
 
   langs: {
     endMessage:
-      "\n💡 𝐌e𝐦𝐛𝐞𝐫𝐬 𝐧𝐨𝐭 𝐨𝐧 𝐭𝐡𝐞 𝐥𝐢𝐬𝐭 𝐡𝐚𝐯𝐞𝐧'𝐭 𝐬𝐞𝐧𝐭 𝐚𝐧𝐲 𝐦𝐞𝐬𝐬𝐚𝐠𝐞𝐬 𝐲𝐞𝐭.",
+      "\n💡 𝐌𝐞𝐦𝐛𝐞𝐫𝐬 𝐧𝐨𝐭 𝐨𝐧 𝐭𝐡𝐞 𝐥𝐢𝐬𝐭 𝐡𝐚𝐯𝐞𝐧'𝐭 𝐬𝐞𝐧𝐭 𝐚𝐧𝐲 𝐦𝐞𝐬𝐬𝐚𝐠𝐞𝐬 𝐲𝐞𝐭.",
 
     page:
       "\n📖 𝐏𝐚𝐠𝐞 [%1/%2]",
@@ -45,7 +45,7 @@ module.exports = {
       "👤 %1 \n  ↳ 🏅 𝐑𝐚𝐧𝐤: %2 | 💬 𝐌𝐞𝐬𝐬𝐚𝐠𝐞𝐬: %3",
 
     invalidPage:
-      "❌ 𝐈𝐧𝐯𝐚𝐥𝐢𝐝 𝐩𝐚𝐠𝐞 𝐧𝐮𝐦𝐛𝐞𝐫! 𝐏𝐥ease 𝐭𝐫𝐲 𝐚𝐠𝐚𝐢𝐧."
+      "❌ 𝐈𝐧𝐯𝐚𝐥𝐢𝐝 𝐩𝐚𝐠𝐞 𝐧𝐮𝐦𝐛𝐞𝐫! 𝐏𝐥𝐞𝐚𝐬𝐞 𝐭𝐫𝐲 𝐚𝐠𝐚𝐢𝐧."
   },
 
   // ============================================================
@@ -69,20 +69,22 @@ module.exports = {
     } = event;
 
     // ==========================================================
-    // GET SAVED MEMBERS
+    // GET THREAD MEMBERS
     // ==========================================================
 
     let threadData = null;
 
     try {
-      threadData = await threadsData.get(threadID);
-    } catch (err) {
+      threadData =
+        await threadsData.get(threadID);
+    } catch {
       threadData = null;
     }
 
-    let members = Array.isArray(threadData?.members)
-      ? threadData.members
-      : [];
+    let members =
+      Array.isArray(threadData?.members)
+        ? threadData.members
+        : [];
 
     // ==========================================================
     // GET CURRENT GROUP PARTICIPANTS
@@ -94,46 +96,60 @@ module.exports = {
       const threadInfo =
         await api.getThreadInfo(threadID);
 
-      usersInGroup =
-        Array.isArray(threadInfo?.participantIDs)
-          ? threadInfo.participantIDs.map(String)
-          : [];
-    } catch (err) {
+      if (
+        Array.isArray(
+          threadInfo?.participantIDs
+        )
+      ) {
+        usersInGroup =
+          threadInfo.participantIDs
+            .map(String);
+      }
+    } catch {
       usersInGroup = [];
     }
 
     // ==========================================================
-    // FALLBACK CURRENT MEMBERS
+    // FALLBACK
     // ==========================================================
 
-    if (usersInGroup.length === 0) {
-      usersInGroup = members
-        .filter(
-          user =>
-            user &&
-            user.userID != null &&
-            user.inGroup !== false
-        )
-        .map(user => String(user.userID));
+    if (
+      usersInGroup.length === 0
+    ) {
+      usersInGroup =
+        members
+          .filter(
+            user =>
+              user &&
+              user.userID != null &&
+              user.inGroup !== false
+          )
+          .map(
+            user =>
+              String(user.userID)
+          );
     }
 
     // ==========================================================
-    // ALL MEMBER RANKING
+    // ALL HISTORY RANKING
     //
-    // IMPORTANT:
-    // এখানে current + left member সবাই থাকবে।
+    // Current + left member সবাই থাকবে।
     // ==========================================================
 
     const arraySortAll = [];
 
-    let totalGroupMessages = 0;
+    let groupTotalMessages = 0;
 
     const charac =
       "️️️️️️️️️️️️️️️️️";
 
     for (const user of members) {
-      if (!user || user.userID == null)
+      if (
+        !user ||
+        user.userID == null
+      ) {
         continue;
+      }
 
       const userID =
         String(user.userID);
@@ -151,7 +167,7 @@ module.exports = {
           ? `Uid: ${userID}`
           : rawName;
 
-      const isCurrentlyInGroup =
+      const inGroup =
         usersInGroup.length > 0
           ? usersInGroup.includes(userID)
           : user.inGroup !== false;
@@ -160,14 +176,15 @@ module.exports = {
         name,
         count: msgCount,
         uid: userID,
-        inGroup: isCurrentlyInGroup
+        inGroup
       });
 
-      totalGroupMessages += msgCount;
+      groupTotalMessages +=
+        msgCount;
     }
 
     // ==========================================================
-    // SORT ALL MEMBERS
+    // SORT ALL
     // ==========================================================
 
     arraySortAll.sort(
@@ -176,40 +193,54 @@ module.exports = {
         (Number(a.count) || 0)
     );
 
+    // ==========================================================
+    // GLOBAL/HISTORY RANK
+    // ==========================================================
+
     let allRank = 1;
 
-    for (const item of arraySortAll) {
+    for (
+      const item of arraySortAll
+    ) {
       item.stt = allRank++;
     }
 
     // ==========================================================
-    // CURRENT GROUP RANKING
-    //
-    // Normal count/rank/reply/mention এর জন্য
-    // শুধু বর্তমানে group-এ থাকা member।
+    // CURRENT ACTIVE MEMBER RANKING
     // ==========================================================
 
     const arraySort =
-      arraySortAll.filter(item =>
-        usersInGroup.length > 0
-          ? usersInGroup.includes(
-              String(item.uid)
-            )
-          : item.inGroup !== false
+      arraySortAll.filter(
+        item =>
+          item.inGroup === true
       );
 
     // ==========================================================
-    // CURRENT GROUP RANK REBUILD
+    // ACTIVE MEMBER TOTAL MESSAGE
+    // ==========================================================
+
+    const activeMemberMessages =
+      arraySort.reduce(
+        (total, item) =>
+          total +
+          (Number(item.count) || 0),
+        0
+      );
+
+    // ==========================================================
+    // CURRENT MEMBER RANK
     // ==========================================================
 
     let currentRank = 1;
 
-    for (const item of arraySort) {
+    for (
+      const item of arraySort
+    ) {
       item.stt = currentRank++;
     }
 
     // ==========================================================
-    // REPLY TO USER MESSAGE
+    // REPLY TO USER
     // ==========================================================
 
     if (
@@ -217,21 +248,24 @@ module.exports = {
       messageReply?.senderID
     ) {
       const targetID =
-        String(messageReply.senderID);
+        String(
+          messageReply.senderID
+        );
 
-      // প্রথমে current group খুঁজবে
       let findUser =
         arraySort.find(
           item =>
-            String(item.uid) === targetID
+            String(item.uid) ===
+            targetID
         );
 
-      // না পেলে all history থেকে খুঁজবে
+      // left member হলেও data পাওয়া যাবে
       if (!findUser) {
         findUser =
           arraySortAll.find(
             item =>
-              String(item.uid) === targetID
+              String(item.uid) ===
+              targetID
           );
       }
 
@@ -264,20 +298,25 @@ module.exports = {
 
       if (!isNaN(firstArg)) {
         const rankIndex =
-          parseInt(firstArg, 10);
+          parseInt(
+            firstArg,
+            10
+          );
 
         if (
           rankIndex < 1 ||
           rankIndex > arraySort.length
         ) {
           return message.reply(
-            `❌ এই গ্রুপে মোট ${arraySort.length} জন সক্রিয় মেম্বার আছেন। ` +
-            `অনুগ্রহ করে ১ থেকে ${arraySort.length}-এর মধ্যে যেকোনো সংখ্যা দিন!`
+            `❌ এই গ্রুপে মোট ${arraySort.length} জন active member আছেন। ` +
+            `১ থেকে ${arraySort.length}-এর মধ্যে সংখ্যা দিন!`
           );
         }
 
         const findUser =
-          arraySort[rankIndex - 1];
+          arraySort[
+            rankIndex - 1
+          ];
 
         const msg =
           `❀━━━{  𝐑𝐀𝐍𝐊 ${rankIndex} 𝐒𝐓𝐀𝐓𝐒  }━━━❀\n` +
@@ -290,25 +329,32 @@ module.exports = {
 
       // ========================================================
       // ALL
-      //
-      // এখানে arraySortAll ব্যবহার করা হচ্ছে।
-      // তাই LEFT MEMBER-ও থাকবে।
       // ========================================================
 
       if (
-        firstArg.toLowerCase() === "all"
+        firstArg.toLowerCase() ===
+        "all"
       ) {
         let page =
-          parseInt(args[1], 10);
+          parseInt(
+            args[1],
+            10
+          );
 
         if (isNaN(page))
           page = 1;
 
-        if (arraySortAll.length === 0) {
+        if (
+          arraySortAll.length === 0
+        ) {
           return message.reply(
             "❌ 𝐍𝐨 𝐦𝐞𝐦𝐛𝐞𝐫 𝐝𝐚𝐭𝐚 𝐟𝐨𝐮𝐧𝐝."
           );
         }
+
+        // ======================================================
+        // SPLIT ALL HISTORY
+        // ======================================================
 
         const splitPage =
           global.utils.splitPage(
@@ -321,9 +367,15 @@ module.exports = {
           page > splitPage.totalPage
         ) {
           return message.reply(
-            getLang("invalidPage")
+            getLang(
+              "invalidPage"
+            )
           );
         }
+
+        // ======================================================
+        // CURRENT PAGE
+        // ======================================================
 
         const currentPageData =
           splitPage.allPage[
@@ -335,48 +387,69 @@ module.exports = {
         let listMsg = "";
 
         for (
-          const item of currentPageData
+          const item of
+            currentPageData
         ) {
-          if (
-            (Number(item.count) || 0) > 0
-          ) {
-            const medal =
-              item.stt === 1
-                ? "🥇"
-                : item.stt === 2
-                ? "🥈"
-                : item.stt === 3
-                ? "🥉"
-                : `🔹 [${item.stt}]`;
+          const count =
+            Number(item.count) || 0;
 
-            // LEFT MEMBER INDICATOR
-            const status =
-              item.inGroup
-                ? ""
-                : " 🚪";
+          if (count <= 0)
+            continue;
 
-            listMsg +=
-              `${medal} ${item.name}${status}: ${item.count}\n`;
+          const medal =
+            item.stt === 1
+              ? "🥇"
+              : item.stt === 2
+              ? "🥈"
+              : item.stt === 3
+              ? "🥉"
+              : `🔹 [${item.stt}]`;
 
-            thisPageMessages +=
-              Number(item.count) || 0;
-          }
+          // left member indicator
+          const status =
+            item.inGroup
+              ? ""
+              : " 🚪";
+
+          listMsg +=
+            `${medal} ${item.name}${status}: ${count}\n`;
+
+          thisPageMessages +=
+            count;
         }
+
+        // ======================================================
+        // FINAL ALL MESSAGE
+        // ======================================================
 
         const msg =
           `❀━━━{  𝐌𝐄𝐒𝐒𝐀𝐆𝐄 𝐑𝐀𝐍𝐊  }━━━❀\n` +
-          `𝐓𝐨𝐭𝐚𝐥 𝐦𝐞𝐬𝐬𝐚𝐠𝐞: ${totalGroupMessages}\n` +
-          `𝐓𝐡𝐢𝐬 𝐩𝐚𝐠𝐞: ${thisPageMessages}\n` +
+
+          `🌐 𝐆𝐫𝐨𝐮𝐩 𝐓𝐨𝐭𝐚𝐥 𝐌𝐞𝐬𝐬𝐚𝐠𝐞: ${groupTotalMessages}\n` +
+
+          `👥 𝐀𝐜𝐭𝐢𝐯𝐞 𝐌𝐞𝐦𝐛𝐞𝐫 𝐌𝐞𝐬𝐬𝐚𝐠𝐞: ${activeMemberMessages}\n` +
+
+          `📄 𝐓𝐡𝐢𝐬 𝐏𝐚𝐠𝐞 𝐌𝐞𝐬𝐬𝐚𝐠𝐞: ${thisPageMessages}\n` +
+
           `❀━━━━━━━━━━━━━━━━━━━❀\n` +
+
           listMsg +
+
           `❀━━━━━━━━━━━━━━━━━━━❀` +
+
           getLang(
             "page",
             page,
             splitPage.totalPage
           ) +
-          `\n${getLang("reply")}` +
-          `${getLang("endMessage")}`;
+
+          `\n${getLang(
+            "reply"
+          )}` +
+
+          `${getLang(
+            "endMessage"
+          )}`;
 
         return message.reply(
           msg,
@@ -384,19 +457,24 @@ module.exports = {
             if (err)
               return message.err(err);
 
-            if (!info?.messageID)
+            if (
+              !info?.messageID
+            )
               return;
 
             global.GoatBot.onReply.set(
               info.messageID,
               {
                 commandName,
+
                 messageID:
                   info.messageID,
 
                 splitPage,
 
-                totalGroupMessages,
+                groupTotalMessages,
+
+                activeMemberMessages,
 
                 author:
                   String(senderID)
@@ -407,7 +485,7 @@ module.exports = {
       }
 
       // ========================================================
-      // MENTIONS
+      // MENTION
       // ========================================================
 
       if (
@@ -431,7 +509,6 @@ module.exports = {
           const targetID =
             String(id);
 
-          // Current group first
           let findUser =
             arraySort.find(
               item =>
@@ -439,7 +516,7 @@ module.exports = {
                 targetID
             );
 
-          // Left member হলেও count দেখাবে
+          // left user হলেও count দেখাবে
           if (!findUser) {
             findUser =
               arraySortAll.find(
@@ -497,7 +574,7 @@ module.exports = {
     }
 
     // ==========================================================
-    // USER LEFT BUT OLD DATA EXISTS
+    // OLD DATA
     // ==========================================================
 
     const oldUser =
@@ -510,12 +587,12 @@ module.exports = {
     if (oldUser) {
       return message.reply(
         `👤 ${oldUser.name}\n` +
-        `💬 আপনার মোট পুরোনো message count: ${oldUser.count}`
+        `💬 আপনার saved message count: ${oldUser.count}`
       );
     }
 
     return message.reply(
-      "❌ 𝐘𝐨𝐮𝐫 𝐝𝐚𝐭𝐚 𝐧𝐨𝐭 𝐟𝐨𝐮𝐧!"
+      "❌ 𝐘𝐨𝐮𝐫 𝐝𝐚𝐭𝐚 𝐧𝐨𝐭 𝐟𝐨𝐮𝐧𝐝!"
     );
   },
 
@@ -539,15 +616,17 @@ module.exports = {
     const {
       author,
       splitPage,
-      totalGroupMessages
+      groupTotalMessages,
+      activeMemberMessages
     } = Reply;
 
-    // শুধু command চালানো user page change করতে পারবে
+    // শুধু command চালানো user page change করবে
     if (
       String(author) !==
       senderID
-    )
+    ) {
       return;
+    }
 
     if (
       !splitPage ||
@@ -556,12 +635,17 @@ module.exports = {
       )
     ) {
       return message.reply(
-        getLang("invalidPage")
+        getLang(
+          "invalidPage"
+        )
       );
     }
 
     const page =
-      parseInt(body, 10);
+      parseInt(
+        body,
+        10
+      );
 
     if (
       isNaN(page) ||
@@ -569,11 +653,13 @@ module.exports = {
       page > splitPage.totalPage
     ) {
       return message.reply(
-        getLang("invalidPage")
+        getLang(
+          "invalidPage"
+        )
       );
     }
 
-    const arraySort =
+    const currentPageData =
       splitPage.allPage[
         page - 1
       ] || [];
@@ -582,50 +668,75 @@ module.exports = {
 
     let listMsg = "";
 
+    // ==========================================================
+    // PAGE DATA
+    // ==========================================================
+
     for (
-      const item of arraySort
+      const item of
+        currentPageData
     ) {
-      if (
-        (Number(item.count) || 0) >
-        0
-      ) {
-        const medal =
-          item.stt === 1
-            ? "🥇"
-            : item.stt === 2
-            ? "🥈"
-            : item.stt === 3
-            ? "🥉"
-            : `🔹 [${item.stt}]`;
+      const count =
+        Number(item.count) || 0;
 
-        const status =
-          item.inGroup
-            ? ""
-            : " 🚪";
+      if (count <= 0)
+        continue;
 
-        listMsg +=
-          `${medal} ${item.name}${status}: ${item.count}\n`;
+      const medal =
+        item.stt === 1
+          ? "🥇"
+          : item.stt === 2
+          ? "🥈"
+          : item.stt === 3
+          ? "🥉"
+          : `🔹 [${item.stt}]`;
 
-        thisPageMessages +=
-          Number(item.count) || 0;
-      }
+      const status =
+        item.inGroup
+          ? ""
+          : " 🚪";
+
+      listMsg +=
+        `${medal} ${item.name}${status}: ${count}\n`;
+
+      thisPageMessages +=
+        count;
     }
+
+    // ==========================================================
+    // REPLY MESSAGE
+    // ==========================================================
 
     const msg =
       `❀━━━{  𝐌𝐄𝐒𝐒𝐀𝐆𝐄 𝐑𝐀𝐍𝐊  }━━━❀\n` +
-      `𝐓𝐨𝐭𝐚𝐥 𝐦𝐞𝐬𝐬𝐚𝐠𝐞: ${totalGroupMessages}\n` +
-      `𝐓𝐡𝐢𝐬 𝐩𝐚𝐠𝐞: ${thisPageMessages}\n` +
+
+      `🌐 𝐆𝐫𝐨𝐮𝐩 𝐓𝐨𝐭𝐚𝐥 𝐌𝐞𝐬𝐬𝐚𝐠𝐞: ${groupTotalMessages}\n` +
+
+      `👥 𝐀𝐜𝐭𝐢𝐯𝐞 𝐌𝐞𝐦𝐛𝐞𝐫 𝐌𝐞𝐬𝐬𝐚𝐠𝐞: ${activeMemberMessages}\n` +
+
+      `📄 𝐓𝐡𝐢𝐬 𝐏𝐚𝐠𝐞 𝐌𝐞𝐬𝐬𝐚𝐠𝐞: ${thisPageMessages}\n` +
+
       `❀━━━━━━━━━━━━━━━━━━━❀\n` +
+
       listMsg +
+
       `❀━━━━━━━━━━━━━━━━━━━❀` +
+
       getLang(
         "page",
         page,
         splitPage.totalPage
       ) +
+
       "\n" +
-      getLang("reply") +
-      getLang("endMessage");
+
+      getLang(
+        "reply"
+      ) +
+
+      getLang(
+        "endMessage"
+      );
 
     message.reply(
       msg,
@@ -633,11 +744,16 @@ module.exports = {
         if (err)
           return message.err(err);
 
-        if (!info?.messageID)
+        if (
+          !info?.messageID
+        )
           return;
 
+        // পুরোনো page message remove
         try {
-          if (Reply.messageID) {
+          if (
+            Reply.messageID
+          ) {
             message.unsend(
               Reply.messageID,
               event.threadID
@@ -645,6 +761,7 @@ module.exports = {
           }
         } catch {}
 
+        // নতুন reply listener
         global.GoatBot.onReply.set(
           info.messageID,
           {
@@ -655,9 +772,12 @@ module.exports = {
 
             splitPage,
 
-            totalGroupMessages,
+            groupTotalMessages,
 
-            author: senderID
+            activeMemberMessages,
+
+            author:
+              senderID
           }
         );
       }
@@ -667,9 +787,9 @@ module.exports = {
   // ============================================================
   // ON CHAT
   //
-  // IMPORTANT:
-  // User leave করলে members থেকে delete হবে না।
-  // শুধু inGroup false হতে পারে অন্য flow থেকে।
+  // User message দিলে count +1 হবে।
+  // User leave করলে এই record delete হবে না।
+  // আবার join করলে একই record পাওয়া যাবে।
   // ============================================================
 
   onChat: async ({
@@ -685,10 +805,15 @@ module.exports = {
     if (
       !senderID ||
       !threadID
-    )
+    ) {
       return;
+    }
 
     let members = [];
+
+    // ==========================================================
+    // LOAD MEMBERS
+    // ==========================================================
 
     try {
       const data =
@@ -709,7 +834,7 @@ module.exports = {
       String(senderID);
 
     // ==========================================================
-    // FIND EXISTING USER
+    // FIND USER
     // ==========================================================
 
     let findMember =
@@ -721,7 +846,7 @@ module.exports = {
       );
 
     // ==========================================================
-    // NEW USER
+    // NEW MEMBER
     // ==========================================================
 
     if (!findMember) {
@@ -737,19 +862,19 @@ module.exports = {
 
       members.push({
         userID: sender,
+
         name,
+
         nickname: null,
 
-        // currently active
         inGroup: true,
 
-        // first message
         count: 1
       });
     }
 
     // ==========================================================
-    // EXISTING USER
+    // EXISTING MEMBER
     // ==========================================================
 
     else {
@@ -758,10 +883,11 @@ module.exports = {
           findMember.count
         ) || 0) + 1;
 
-      // আবার group-এ active
-      findMember.inGroup = true;
+      // আবার active
+      findMember.inGroup =
+        true;
 
-      // নাম missing হলে update
+      // নাম update
       if (
         !findMember.name ||
         findMember.name ===
@@ -778,6 +904,9 @@ module.exports = {
 
     // ==========================================================
     // SAVE
+    //
+    // IMPORTANT:
+    // Member record কখনো delete করছি না।
     // ==========================================================
 
     try {
