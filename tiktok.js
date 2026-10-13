@@ -2,1103 +2,642 @@ const axios = require("axios");
 const fs = require("fs-extra");
 const path = require("path");
 
+const CONFIG_URL =
+  "https://raw.githubusercontent.com/bdrakib6t9/HOON/main/apiUrl.json";
+
+const CACHE_DIR = path.join(__dirname, "cache");
+
 module.exports = {
   config: {
     name: "tiktok",
     aliases: ["tik"],
-    version: "3.0",
+    version: "4.0",
     author: "Hoon",
-
     countDown: 5,
     role: 0,
-
-    shortDescription: "TikTok Search",
-
+    shortDescription: "Search and download TikTok videos",
     longDescription:
-      "Search TikTok videos using Hoon TikTok API and download selected videos by reply.",
-
+      "Search TikTok videos by keyword and download selected video.",
     category: "media",
-
-    guide: "{pn} <query>"
+    guide: {
+      en: "{pn} <keyword>"
+    }
   },
 
-  /*
-   * ============================================
-   * ON START
-   * ============================================
-   */
+  onStart: async function ({ api, event, args }) {
+    const { threadID, messageID } = event;
 
-  onStart: async function ({
-    message,
-    args,
-    event,
-    commandName
-  }) {
-    let wait;
+    if (!args.length) {
+      return api.sendMessage(
+        "❌ | একটি TikTok search keyword দাও।\n\nExample:\n/tiktok anime edit",
+        threadID,
+        messageID
+      );
+    }
+
+    const query = args.join(" ").trim();
 
     try {
-      /*
-       * ==========================================
-       * QUERY
-       * ==========================================
-       */
+      // =========================
+      // Load API config
+      // =========================
 
-      const query =
-        args.join(" ").trim();
+      const configResponse = await axios.get(CONFIG_URL, {
+        timeout: 30000
+      });
 
-      if (!query) {
-        return message.reply(
-          "⚠️ | Please enter a TikTok search query."
-        );
-      }
+      const config = configResponse.data || {};
 
-      /*
-       * ==========================================
-       * GET API URL
-       * ==========================================
-       */
+      let baseUrl =
+        config.tik ||
+        config.tiktok ||
+        config.tiktokApi ||
+        config.tikTokApi ||
+        "https://rakib-tik-api2.onrender.com";
 
-      const rawApi =
-        "https://raw.githubusercontent.com/bdrakib6t9/HOON/main/apiUrl.json";
+      baseUrl = String(baseUrl).replace(/\/+$/, "");
 
-      const apiConfig =
-        await axios.get(rawApi, {
-          timeout: 30000
-        });
+      console.log(`[TikTok] API: ${baseUrl}`);
 
-      const baseUrl =
-        String(
-          apiConfig.data?.tik || ""
-        )
-          .trim()
-          .replace(/\/+$/, "");
+      // =========================
+      // Search TikTok
+      // =========================
 
-      if (!baseUrl) {
-        return message.reply(
-          "❌ | TikTok API URL not found in apiUrl.json."
-        );
-      }
-
-      /*
-       * ==========================================
-       * SEARCH MESSAGE
-       * ==========================================
-       */
-
-      wait = await message.reply(
-`🔍 Searching TikTok...
-
-📝 Query: ${query}
-⏳ Please wait...`
-      );
-
-      /*
-       * ==========================================
-       * SEARCH API
-       * POST /search
-       * ==========================================
-       */
-
-      const searchResponse =
-        await axios.post(
-          `${baseUrl}/search`,
-          {
-            type: "keyword",
-            query,
-            limit: 10,
-            cursor: 0,
-            fan_out: 1
-          },
-          {
-            timeout: 120000,
-
-            headers: {
-              "Content-Type":
-                "application/json"
-            }
+      const searchResponse = await axios.post(
+        `${baseUrl}/search`,
+        {
+          type: "keyword",
+          query,
+          limit: 10,
+          cursor: 0,
+          fan_out: 1
+        },
+        {
+          timeout: 120000,
+          headers: {
+            "Content-Type": "application/json",
+            "User-Agent":
+              "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36",
+            Accept: "application/json"
           }
-        );
-
-      const data =
-        searchResponse.data;
-
-      /*
-       * ==========================================
-       * CHECK RESULTS
-       * ==========================================
-       */
-
-      if (
-        !data ||
-        !Array.isArray(
-          data.results
-        ) ||
-        data.results.length === 0
-      ) {
-        try {
-          await message.unsend(
-            wait.messageID,
-            event.threadID
-          );
-        } catch {}
-
-        return message.reply(
-          "❌ | No TikTok results found."
-        );
-      }
-
-      /*
-       * ==========================================
-       * NORMALIZE RESULTS
-       * ==========================================
-       */
-
-      const results =
-        data.results
-          .filter(
-            item =>
-              item &&
-              item.id
-          )
-          .slice(0, 10)
-          .map(item => ({
-            id: String(
-              item.id
-            ),
-
-            title:
-              item.description ||
-              item.desc ||
-              "TikTok Video",
-
-            author:
-              item.author_username ||
-              item.author_unique_id ||
-              item.author ||
-              "Unknown",
-
-            authorName:
-              item.author_username ||
-              item.author_unique_id ||
-              item.author ||
-              "Unknown",
-
-            thumbnail:
-              item.cover ||
-              item.cover_url ||
-              item.thumbnail ||
-              null,
-
-            region:
-              item.region_code ||
-              "Unknown",
-
-            views:
-              Number(
-                item.view_count ||
-                item.play_count ||
-                item.stats?.playCount ||
-                0
-              ),
-
-            likes:
-              Number(
-                item.like_count ||
-                item.digg_count ||
-                item.stats?.diggCount ||
-                0
-              ),
-
-            comments:
-              Number(
-                item.comment_count ||
-                item.stats?.commentCount ||
-                0
-              ),
-
-            shares:
-              Number(
-                item.share_count ||
-                item.stats?.shareCount ||
-                0
-              )
-          }));
-
-      if (!results.length) {
-        try {
-          await message.unsend(
-            wait.messageID,
-            event.threadID
-          );
-        } catch {}
-
-        return message.reply(
-          "❌ | No usable TikTok results found."
-        );
-      }
-
-      /*
-       * ==========================================
-       * CACHE
-       * ==========================================
-       */
-
-      const cacheFolder =
-        path.join(
-          __dirname,
-          "cache"
-        );
-
-      await fs.ensureDir(
-        cacheFolder
+        }
       );
 
-      /*
-       * ==========================================
-       * RESULT MESSAGE
-       * ==========================================
-       */
+      const searchData = searchResponse.data;
 
-      let msg =
-        `╭──『 TIKTOK SEARCH 』──╮\n`;
+      console.log(
+        "[TikTok] Search response:",
+        JSON.stringify(searchData).slice(0, 3000)
+      );
 
-      msg +=
-        `🔎 Query: ${query}\n`;
+      // =========================
+      // Find result array
+      // =========================
 
-      msg +=
-        `📦 Results: ${results.length}\n`;
+      let rawVideos = [];
 
-      msg +=
-        `⚡ API: Hoon TikTok API\n`;
+      if (Array.isArray(searchData)) {
+        rawVideos = searchData;
+      } else if (Array.isArray(searchData?.data)) {
+        rawVideos = searchData.data;
+      } else if (Array.isArray(searchData?.results)) {
+        rawVideos = searchData.results;
+      } else if (Array.isArray(searchData?.videos)) {
+        rawVideos = searchData.videos;
+      } else if (Array.isArray(searchData?.data?.videos)) {
+        rawVideos = searchData.data.videos;
+      } else if (Array.isArray(searchData?.result)) {
+        rawVideos = searchData.result;
+      } else if (Array.isArray(searchData?.result?.videos)) {
+        rawVideos = searchData.result.videos;
+      }
 
-      msg +=
-        `╰────────────────────╯\n\n`;
+      if (!rawVideos.length) {
+        return api.sendMessage(
+          `❌ | "${query}" এর জন্য কোনো TikTok ভিডিও পাওয়া যায়নি।`,
+          threadID,
+          messageID
+        );
+      }
+
+      // =========================
+      // Normalize results
+      // =========================
+
+      const videos = rawVideos
+        .map((item, index) => {
+          const data = item?.data || item?.video || item;
+
+          const id =
+            data?.id ||
+            data?.video_id ||
+            data?.aweme_id ||
+            data?.item_id ||
+            data?.video?.id ||
+            "";
+
+          const author =
+            data?.author?.unique_id ||
+            data?.author?.uniqueId ||
+            data?.author?.username ||
+            data?.author?.unique_id ||
+            data?.author ||
+            data?.username ||
+            data?.user?.unique_id ||
+            data?.user?.username ||
+            "";
+
+          const title =
+            data?.title ||
+            data?.desc ||
+            data?.description ||
+            data?.video?.title ||
+            "TikTok Video";
+
+          const thumbnail =
+            data?.thumbnail ||
+            data?.cover ||
+            data?.origin_cover ||
+            data?.dynamic_cover ||
+            data?.video?.cover ||
+            "";
+
+          const region =
+            data?.region ||
+            data?.location ||
+            "";
+
+          const stats = data?.stats || data?.statistics || {};
+
+          const views =
+            data?.views ||
+            data?.playCount ||
+            data?.play_count ||
+            stats?.playCount ||
+            stats?.play_count ||
+            0;
+
+          const likes =
+            data?.likes ||
+            data?.diggCount ||
+            data?.digg_count ||
+            stats?.diggCount ||
+            stats?.digg_count ||
+            0;
+
+          const comments =
+            data?.comments ||
+            data?.commentCount ||
+            data?.comment_count ||
+            stats?.commentCount ||
+            stats?.comment_count ||
+            0;
+
+          const shares =
+            data?.shares ||
+            data?.shareCount ||
+            data?.share_count ||
+            stats?.shareCount ||
+            stats?.share_count ||
+            0;
+
+          return {
+            index: index + 1,
+            id: String(id),
+            author: String(author || "unknown"),
+            title: String(title || "TikTok Video"),
+            thumbnail: String(thumbnail || ""),
+            region: String(region || ""),
+            views,
+            likes,
+            comments,
+            shares
+          };
+        })
+        .filter(video => video.id);
+
+      if (!videos.length) {
+        return api.sendMessage(
+          "❌ | Search result পাওয়া গেছে, কিন্তু valid video ID পাওয়া যায়নি।",
+          threadID,
+          messageID
+        );
+      }
+
+      // Maximum 10
+      const finalVideos = videos.slice(0, 10);
+
+      // =========================
+      // Build result text
+      // =========================
+
+      let message =
+        `🎵 𝗧𝗶𝗸𝗧𝗼𝗸 𝗦𝗲𝗮𝗿𝗰𝗵\n` +
+        `━━━━━━━━━━━━━━━━━━\n` +
+        `🔎 Query: ${query}\n` +
+        `📌 Results: ${finalVideos.length}\n\n`;
+
+      finalVideos.forEach((video, i) => {
+        message +=
+          `【${i + 1}】 ${video.title.slice(0, 100)}\n` +
+          `👤 ${video.author}\n` +
+          `👁️ ${formatNumber(video.views)}   ` +
+          `❤️ ${formatNumber(video.likes)}\n` +
+          `💬 ${formatNumber(video.comments)}   ` +
+          `🔁 ${formatNumber(video.shares)}\n\n`;
+      });
+
+      message +=
+        `━━━━━━━━━━━━━━━━━━\n` +
+        `💬 Reply with a number (1-${finalVideos.length}) to download.`;
+
+      // =========================
+      // Download thumbnails
+      // =========================
 
       const attachments = [];
-      const thumbnailPaths = [];
 
-      /*
-       * ==========================================
-       * DOWNLOAD THUMBNAILS
-       * ==========================================
-       */
+      await fs.ensureDir(CACHE_DIR);
 
-      for (
-        let i = 0;
-        i < results.length;
-        i++
-      ) {
-        const item =
-          results[i];
+      for (let i = 0; i < finalVideos.length; i++) {
+        const video = finalVideos[i];
 
-        const title =
-          String(
-            item.title ||
-            "TikTok Video"
+        if (!video.thumbnail) continue;
+
+        try {
+          const imageResponse = await axios.get(video.thumbnail, {
+            responseType: "arraybuffer",
+            timeout: 30000,
+            maxContentLength: 10 * 1024 * 1024,
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36",
+              Referer: "https://www.tiktok.com/"
+            }
+          });
+
+          const imagePath = path.join(
+            CACHE_DIR,
+            `tik_thumb_${Date.now()}_${i}.jpg`
           );
 
-        msg +=
-          `〔 ${i + 1} 〕 ${item.author}\n`;
+          await fs.writeFile(imagePath, Buffer.from(imageResponse.data));
 
-        msg +=
-          `🎬 ${title.slice(0, 80)}${
-            title.length > 80
-              ? "..."
-              : ""
-          }\n`;
+          attachments.push(fs.createReadStream(imagePath));
 
-        msg +=
-          `👁 ${formatNumber(
-            item.views
-          )}  ❤️ ${formatNumber(
-            item.likes
-          )}\n\n`;
-
-        /*
-         * Thumbnail
-         */
-
-        if (item.thumbnail) {
-          try {
-            const thumbPath =
-              path.join(
-                cacheFolder,
-                `thumb_${Date.now()}_${i}.jpg`
-              );
-
-            const thumbResponse =
-              await axios.get(
-                item.thumbnail,
-                {
-                  responseType:
-                    "arraybuffer",
-
-                  headers: {
-                    "User-Agent":
-                      "Mozilla/5.0"
-                  },
-
-                  timeout: 30000
-                }
-              );
-
-            await fs.writeFile(
-              thumbPath,
-              Buffer.from(
-                thumbResponse.data
-              )
-            );
-
-            attachments.push(
-              fs.createReadStream(
-                thumbPath
-              )
-            );
-
-            thumbnailPaths.push(
-              thumbPath
-            );
-
-          } catch (error) {
-            console.log(
-              `Thumbnail ${
-                i + 1
-              } failed:`,
-              error.message
-            );
-          }
+          // Delete thumbnail later
+          setTimeout(async () => {
+            try {
+              await fs.remove(imagePath);
+            } catch {}
+          }, 120000);
+        } catch (err) {
+          console.log(
+            `[TikTok] Thumbnail ${i + 1} failed:`,
+            err.message
+          );
         }
       }
 
-      /*
-       * ==========================================
-       * REPLY INSTRUCTION
-       * ==========================================
-       */
+      // =========================
+      // Save reply data
+      // =========================
 
-      msg +=
-        `💬 Reply with a number (1-${results.length}) to download.`;
+      global.GoatBot.onReply.set(messageID, {
+        commandName: "tiktok",
+        author: event.senderID,
+        threadID,
+        baseUrl,
+        videos: finalVideos
+      });
 
-      /*
-       * ==========================================
-       * REMOVE SEARCHING MESSAGE
-       * ==========================================
-       */
+      // =========================
+      // Send results
+      // =========================
 
-      try {
-        await message.unsend(
-          wait.messageID,
-          event.threadID
-        );
-      } catch {}
-
-      /*
-       * ==========================================
-       * SEND RESULTS
-       * ==========================================
-       */
-
-      const sent =
-        await message.reply({
-          body: msg,
-
-          attachment:
-            attachments.length
-              ? attachments
-              : undefined
-        });
-
-      /*
-       * ==========================================
-       * DELETE THUMBNAILS
-       * ==========================================
-       */
-
-      setTimeout(
-        async () => {
-          for (
-            const file
-            of thumbnailPaths
-          ) {
-            try {
-              if (
-                await fs.pathExists(
-                  file
-                )
-              ) {
-                await fs.remove(
-                  file
-                );
-              }
-            } catch {}
-          }
-        },
-        30000
-      );
-
-      /*
-       * ==========================================
-       * SAVE REPLY DATA
-       * ==========================================
-       */
-
-      global.GoatBot.onReply.set(
-        sent.messageID,
+      return api.sendMessage(
         {
-          commandName,
-
-          author:
-            event.senderID,
-
-          results,
-
-          messageID:
-            sent.messageID,
-
-          threadID:
-            event.threadID,
-
-          baseUrl
-        }
+          body: message,
+          attachment: attachments.length ? attachments : undefined
+        },
+        threadID,
+        messageID
       );
-
     } catch (error) {
       console.error(
-        "TikTok Search Error:",
-        error
+        "[TikTok] Search Error:",
+        error?.response?.data || error
       );
 
-      /*
-       * Remove waiting message
-       */
-
-      if (wait) {
-        try {
-          await message.unsend(
-            wait.messageID,
-            event.threadID
-          );
-        } catch {}
-      }
-
-      return message.reply(
-`❌ | TikTok search failed.
-
-${getErrorMessage(error)}`
+      return api.sendMessage(
+        `❌ | TikTok search failed.\n\n${getErrorMessage(error)}`,
+        threadID,
+        messageID
       );
     }
   },
 
-  /*
-   * ============================================
-   * ON REPLY
-   * ============================================
-   */
+  // ==========================================================
+  // ON REPLY
+  // ==========================================================
 
-  onReply: async function ({
-    message,
-    Reply,
-    event
-  }) {
-    let downloading = null;
-    let filePath = null;
+  onReply: async function ({ api, event, Reply }) {
+    const { threadID, messageID, body } = event;
+
+    // Only original user can select
+    if (String(Reply.author) !== String(event.senderID)) {
+      return;
+    }
+
+    const input = String(body || "").trim();
+
+    if (!/^\d+$/.test(input)) {
+      return api.sendMessage(
+        `❌ | শুধু একটি সংখ্যা দাও।\n\nExample: 1`,
+        threadID,
+        messageID
+      );
+    }
+
+    const index = parseInt(input, 10) - 1;
+
+    if (
+      index < 0 ||
+      index >= Reply.videos.length
+    ) {
+      return api.sendMessage(
+        `❌ | 1 থেকে ${Reply.videos.length} এর মধ্যে একটি সংখ্যা দাও।`,
+        threadID,
+        messageID
+      );
+    }
+
+    const video = Reply.videos[index];
 
     try {
-      /*
-       * ==========================================
-       * ONLY ORIGINAL USER
-       * ==========================================
-       */
-
-      if (
-        String(
-          event.senderID
-        ) !==
-        String(
-          Reply.author
-        )
-      ) {
-        return;
-      }
-
-      /*
-       * ==========================================
-       * PARSE NUMBER
-       * ==========================================
-       */
-
-      const num =
-        parseInt(
-          String(
-            event.body
-          ).trim(),
-          10
-        );
-
-      if (
-        Number.isNaN(num) ||
-        num < 1 ||
-        num >
-          Reply.results.length
-      ) {
-        return message.reply(
-          `⚠️ | Invalid number.\n\nPlease reply with 1-${Reply.results.length}.`
-        );
-      }
-
-      /*
-       * ==========================================
-       * SELECT VIDEO
-       * ==========================================
-       */
-
-      const video =
-        Reply.results[
-          num - 1
-        ];
-
-      if (
-        !video ||
-        !video.id
-      ) {
-        return message.reply(
-          "❌ | TikTok video ID not found."
-        );
-      }
-
-      /*
-       * ==========================================
-       * REMOVE SEARCH RESULT
-       * ==========================================
-       */
-
-      try {
-        await message.unsend(
-          Reply.messageID,
-          event.threadID
-        );
-      } catch {}
-
-      /*
-       * ==========================================
-       * DOWNLOAD MESSAGE
-       * ==========================================
-       */
-
-      downloading =
-        await message.reply(
-`⏳ Downloading video ${num}...
-
-👤 ${
-  video.author ||
-  "Unknown"
-}
-
-📥 Please wait...`
-        );
-
-      /*
-       * ==========================================
-       * CACHE FOLDER
-       * ==========================================
-       */
-
-      const cacheFolder =
-        path.join(
-          __dirname,
-          "cache"
-        );
-
-      await fs.ensureDir(
-        cacheFolder
-      );
-
-      /*
-       * ==========================================
-       * FILE PATH
-       * ==========================================
-       */
-
-      filePath =
-        path.join(
-          cacheFolder,
-          `tik_${Date.now()}_${event.senderID}.mp4`
-        );
-
-      /*
-       * ==========================================
-       * BUILD TIKTOK URL
-       * ==========================================
-       */
+      // =========================
+      // TikTok URL
+      // =========================
 
       const tiktokUrl =
         `https://www.tiktok.com/@${encodeURIComponent(
           video.author
         )}/video/${video.id}`;
 
-      console.log(
-        "TikTok URL:",
-        tiktokUrl
+      console.log(`[TikTok] Selected: ${tiktokUrl}`);
+
+      // =========================
+      // Download API
+      // =========================
+
+      const downloadApi =
+        `${Reply.baseUrl}/download?url=${encodeURIComponent(
+          tiktokUrl
+        )}`;
+
+      console.log(`[TikTok] Download API: ${downloadApi}`);
+
+      await api.sendMessage(
+        `⏳ | ভিডিও ডাউনলোড হচ্ছে...\n\n` +
+        `🎬 ${video.title.slice(0, 150)}\n` +
+        `👤 ${video.author}\n\n` +
+        `Please wait...`,
+        threadID,
+        messageID
       );
 
-      /*
-       * ==========================================
-       * GET VIDEO INFO
-       * GET /video
-       * ==========================================
-       */
+      // =========================
+      // Download MP4 from API
+      // =========================
 
-      const videoResponse =
-        await axios.get(
-          `${Reply.baseUrl}/video`,
-          {
-            params: {
-              url: tiktokUrl
-            },
+      const response = await axios.get(downloadApi, {
+        responseType: "arraybuffer",
 
-            timeout: 120000
-          }
-        );
+        timeout: 300000,
 
-      const videoData =
-        videoResponse.data;
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
 
-      console.log(
-        "TikTok video API response received."
-      );
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36",
 
-      /*
-       * ==========================================
-       * FIND VIDEO URL
-       * ==========================================
-       *
-       * API currently returns:
-       *
-       * data.play_url
-       *
-       * and:
-       *
-       * data.download_url = null
-       *
-       */
+          Accept: "video/mp4,application/octet-stream,*/*"
+        }
+      });
 
-      const downloadUrl =
-        videoData?.data?.download_url ||
-        videoData?.data?.play_url ||
-        videoData?.download_url ||
-        videoData?.play_url ||
-        videoData?.result?.download_url ||
-        videoData?.result?.play_url ||
-        null;
+      const contentType =
+        response.headers["content-type"] ||
+        "";
 
-      if (!downloadUrl) {
-        console.log(
-          "TikTok API response:",
-          JSON.stringify(
-            videoData,
-            null,
-            2
-          )
-        );
-
-        throw new Error(
-          "TikTok API did not return a video URL."
-        );
-      }
+      const buffer = Buffer.from(response.data);
 
       console.log(
-        "TikTok play URL found."
+        `[TikTok] Content-Type: ${contentType}`
       );
-
-      /*
-       * ==========================================
-       * DOWNLOAD DIRECTLY
-       * ==========================================
-       *
-       * IMPORTANT:
-       *
-       * We DO NOT call:
-       *
-       * /download
-       *
-       * anymore.
-       *
-       * We directly download the
-       * play_url returned by /video.
-       */
-
-      const response =
-        await axios.get(
-          downloadUrl,
-          {
-            responseType:
-              "arraybuffer",
-
-            timeout: 300000,
-
-            maxContentLength:
-              Infinity,
-
-            maxBodyLength:
-              Infinity,
-
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36",
-
-              "Referer":
-                "https://www.tiktok.com/",
-
-              "Accept":
-                "video/mp4,video/*,*/*"
-            }
-          }
-        );
-
-      /*
-       * ==========================================
-       * VALIDATE RESPONSE
-       * ==========================================
-       */
-
-      if (
-        !response.data ||
-        !response.data.length
-      ) {
-        throw new Error(
-          "TikTok video response is empty."
-        );
-      }
-
-      /*
-       * ==========================================
-       * SAVE MP4
-       * ==========================================
-       */
-
-      await fs.writeFile(
-        filePath,
-        Buffer.from(
-          response.data
-        )
-      );
-
-      /*
-       * ==========================================
-       * CHECK FILE
-       * ==========================================
-       */
-
-      const stat =
-        await fs.stat(
-          filePath
-        );
-
-      if (
-        !stat.size
-      ) {
-        throw new Error(
-          "Downloaded video file is empty."
-        );
-      }
 
       console.log(
-        `TikTok downloaded successfully: ${(
-          stat.size /
+        `[TikTok] Downloaded: ${(
+          buffer.length /
           1024 /
           1024
         ).toFixed(2)} MB`
       );
 
-      /*
-       * ==========================================
-       * REMOVE DOWNLOAD MESSAGE
-       * ==========================================
-       */
+      // =========================
+      // Check API response
+      // =========================
 
-      try {
-        await message.unsend(
-          downloading.messageID,
-          event.threadID
-        );
-      } catch {}
+      if (!contentType.toLowerCase().includes("video/mp4")) {
+        let errorText = "";
 
-      /*
-       * ==========================================
-       * SEND VIDEO
-       * ==========================================
-       */
+        try {
+          const text = buffer.toString("utf8");
 
-      const sentVideo =
-        await message.reply({
-          body:
-`🚀 𝗧𝗘𝗦𝗦𝗔 𝗕𝗢𝗧 🤖
-🎬 𝗧𝗶𝗸𝗧𝗼𝗸 𝗩𝗶𝗱𝗲𝗼 𝗗𝗲𝗹𝗶𝘃𝗲𝗿𝗲𝗱
-💎 𝗤𝘂𝗮𝗹𝗶𝘁𝘆 𝗖𝗼𝗻𝘁𝗲𝗻𝘁
-━━━━━━━━━━━━━━
-👤 Author: ${
-  video.author ||
-  "Unknown"
-}
-📝 ${
-  video.title ||
-  "TikTok Video"
-}
-👁 Views: ${
-  formatNumber(
-    video.views
-  )
-}
-❤️ Likes: ${
-  formatNumber(
-    video.likes
-  )
-}
-━━━━━━━━━━━━━━
-modified:hoon`,
-
-          attachment:
-            fs.createReadStream(
-              filePath
-            )
-        });
-
-      /*
-       * ==========================================
-       * DELETE VIDEO LATER
-       * ==========================================
-       */
-
-      setTimeout(
-        async () => {
           try {
-            if (
-              await fs.pathExists(
-                filePath
-              )
-            ) {
-              await fs.remove(
-                filePath
-              );
-            }
-          } catch (
-            error
-          ) {
-            console.log(
-              "Failed to delete TikTok file:",
-              error.message
-            );
+            const json = JSON.parse(text);
+
+            errorText =
+              json.detail ||
+              json.message ||
+              json.error ||
+              JSON.stringify(json, null, 2);
+          } catch {
+            errorText = text.slice(0, 1500);
           }
+        } catch {
+          errorText = "Unknown API response";
+        }
+
+        throw new Error(
+          `Download API MP4 দেয়নি.\n\n` +
+          `Content-Type: ${contentType}\n\n` +
+          errorText
+        );
+      }
+
+      // =========================
+      // Validate MP4
+      // =========================
+
+      if (!buffer || buffer.length < 10000) {
+        throw new Error(
+          "Downloaded video file is too small or empty."
+        );
+      }
+
+      // =========================
+      // Save MP4
+      // =========================
+
+      await fs.ensureDir(CACHE_DIR);
+
+      const safeId = String(video.id).replace(
+        /[^a-zA-Z0-9_-]/g,
+        ""
+      );
+
+      const fileName =
+        `tiktok_${safeId}_${Date.now()}.mp4`;
+
+      const filePath =
+        path.join(CACHE_DIR, fileName);
+
+      await fs.writeFile(filePath, buffer);
+
+      console.log(
+        `[TikTok] Saved: ${filePath}`
+      );
+
+      // =========================
+      // Send video
+      // =========================
+
+      await api.sendMessage(
+        {
+          body:
+            `🎬 | 𝗧𝗶𝗸𝗧𝗼𝗸 𝗩𝗶𝗱𝗲𝗼\n` +
+            `━━━━━━━━━━━━━━━━━━\n` +
+            `👤 Author: ${video.author}\n` +
+            `👁️ Views: ${formatNumber(video.views)}\n` +
+            `❤️ Likes: ${formatNumber(video.likes)}\n` +
+            `💬 Comments: ${formatNumber(video.comments)}\n` +
+            `🔁 Shares: ${formatNumber(video.shares)}\n` +
+            `━━━━━━━━━━━━━━━━━━\n` +
+            `✅ Download Complete`,
+          attachment: fs.createReadStream(filePath)
         },
-        15000
+        threadID
       );
 
-      return sentVideo;
+      // =========================
+      // Delete cache
+      // =========================
 
-    } catch (error) {
-      /*
-       * ==========================================
-       * ERROR LOG
-       * ==========================================
-       */
-
-      console.error(
-        "TikTok Download Error:",
-        error
-      );
-
-      /*
-       * ==========================================
-       * REMOVE DOWNLOAD MESSAGE
-       * ==========================================
-       */
-
-      if (downloading) {
+      setTimeout(async () => {
         try {
-          await message.unsend(
-            downloading.messageID,
-            event.threadID
-          );
-        } catch {}
-      }
+          if (await fs.pathExists(filePath)) {
+            await fs.remove(filePath);
 
-      /*
-       * ==========================================
-       * REMOVE BROKEN FILE
-       * ==========================================
-       */
-
-      if (filePath) {
-        try {
-          if (
-            await fs.pathExists(
-              filePath
-            )
-          ) {
-            await fs.remove(
-              filePath
+            console.log(
+              `[TikTok] Cache deleted: ${filePath}`
             );
           }
-        } catch {}
-      }
+        } catch (err) {
+          console.error(
+            "[TikTok] Cache delete error:",
+            err.message
+          );
+        }
+      }, 120000);
+    } catch (error) {
+      console.error(
+        "[TikTok] Download Error:",
+        error?.response?.data || error
+      );
 
-      /*
-       * ==========================================
-       * SEND CLEAN ERROR
-       * ==========================================
-       */
-
-      return message.reply(
-`❌ | TikTok download failed.
-
-${getErrorMessage(error)}`
+      return api.sendMessage(
+        `❌ | TikTok download failed.\n\n${getErrorMessage(
+          error
+        )}`,
+        threadID,
+        messageID
       );
     }
   }
 };
 
+// ==========================================================
+// HELPERS
+// ==========================================================
 
-/*
- * ============================================
- * ERROR HELPER
- * ============================================
- */
+function formatNumber(value) {
+  const num = Number(value);
 
-function getErrorMessage(error) {
-  if (!error) {
-    return "Unknown error.";
+  if (!Number.isFinite(num)) {
+    return String(value || 0);
   }
 
-  /*
-   * Axios response
-   */
-
-  const data =
-    error?.response?.data;
-
-  if (
-    typeof data ===
-    "string"
-  ) {
-    return data;
+  if (num >= 1_000_000_000) {
+    return `${(num / 1_000_000_000).toFixed(1)}B`;
   }
 
-  if (
-    data &&
-    typeof data ===
-      "object"
-  ) {
-    if (
-      typeof data.detail ===
-      "string"
-    ) {
-      return data.detail;
-    }
-
-    if (
-      typeof data.message ===
-      "string"
-    ) {
-      return data.message;
-    }
-
-    if (
-      data.detail &&
-      typeof data.detail ===
-        "object"
-    ) {
-      return JSON.stringify(
-        data.detail,
-        null,
-        2
-      );
-    }
-
-    try {
-      return JSON.stringify(
-        data,
-        null,
-        2
-      );
-    } catch {}
+  if (num >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(1)}M`;
   }
 
-  /*
-   * Normal Error
-   */
-
-  if (
-    error.message
-  ) {
-    return error.message;
+  if (num >= 1_000) {
+    return `${(num / 1_000).toFixed(1)}K`;
   }
 
-  return String(error);
+  return String(num);
 }
 
+function getErrorMessage(error) {
+  try {
+    if (!error) {
+      return "Unknown error";
+    }
 
-/*
- * ============================================
- * NUMBER FORMAT
- * ============================================
- */
+    if (typeof error === "string") {
+      return error;
+    }
 
-function formatNumber(number) {
-  number =
-    Number(number || 0);
+    if (error.message) {
+      return error.message;
+    }
 
-  if (
-    number >= 1000000000
-  ) {
-    return (
-      (
-        number /
-        1000000000
-      )
-        .toFixed(1)
-        .replace(
-          ".0",
-          ""
-        ) +
-      "B"
-    );
+    if (error.response?.data) {
+      const data = error.response.data;
+
+      if (Buffer.isBuffer(data)) {
+        const text = data.toString("utf8");
+
+        try {
+          return JSON.stringify(
+            JSON.parse(text),
+            null,
+            2
+          );
+        } catch {
+          return text.slice(0, 1500);
+        }
+      }
+
+      if (typeof data === "object") {
+        return (
+          data.detail ||
+          data.message ||
+          data.error ||
+          JSON.stringify(data, null, 2)
+        );
+      }
+
+      return String(data);
+    }
+
+    return JSON.stringify(error, null, 2);
+  } catch {
+    return "Unknown error occurred.";
   }
-
-  if (
-    number >= 1000000
-  ) {
-    return (
-      (
-        number /
-        1000000
-      )
-        .toFixed(1)
-        .replace(
-          ".0",
-          ""
-        ) +
-      "M"
-    );
-  }
-
-  if (
-    number >= 1000
-  ) {
-    return (
-      (
-        number /
-        1000
-      )
-        .toFixed(1)
-        .replace(
-          ".0",
-          ""
-        ) +
-      "K"
-    );
-  }
-
-  return String(
-    number
-  );
 }
