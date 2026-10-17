@@ -48,7 +48,8 @@ module.exports = {
           "[PAIR] usersData error:",
           error.message
         );
-      }                                               
+      }
+
       /* ================= THREAD INFO ================= */
 
       const threadData = await api.getThreadInfo(
@@ -57,13 +58,15 @@ module.exports = {
 
       if (!threadData) {
         return api.sendMessage(
-          "❌ Failed to get group information.",                event.threadID
+          "❌ Failed to get group information.",
+          event.threadID
         );
       }
 
       let users = [];
 
-      if (Array.isArray(threadData.userInfo)) {               users = threadData.userInfo;
+      if (Array.isArray(threadData.userInfo)) {
+        users = threadData.userInfo;
       }
 
       if (
@@ -78,12 +81,14 @@ module.exports = {
       if (
         !users.length &&
         Array.isArray(threadData.participants)
-      ) {                                                     users = threadData.participants;
+      ) {
+        users = threadData.participants;
       }
 
       if (!users.length) {
         return api.sendMessage(
-          "❌ Failed to get user list.",                        event.threadID
+          "❌ Failed to get user list.",
+          event.threadID
         );
       }
 
@@ -93,7 +98,8 @@ module.exports = {
         if (typeof gender === "number") {
           if ([1, 3, 8].includes(gender)) return "FEMALE";
           if ([2, 4, 9].includes(gender)) return "MALE";
-          return null;                                        }
+          return null;
+        }
 
         if (typeof gender !== "string") {
           return null;
@@ -138,8 +144,10 @@ module.exports = {
         currentGender
       ) {
         const normalized =
-          normalizeGender(currentGender);             
-        if (normalized) {                                       return normalized;
+          normalizeGender(currentGender);
+
+        if (normalized) {
+          return normalized;
         }
 
         try {
@@ -172,7 +180,8 @@ module.exports = {
       if (!myData) {
         return api.sendMessage(
           "❌ Your user information was not found in this group.",
-          event.threadID                                      );
+          event.threadID
+        );
       }
 
       const myGender =
@@ -201,7 +210,8 @@ module.exports = {
 
         const gender =
           await getFreshGender(
-            userID,                                               user.gender ?? user.sex
+            userID,
+            user.gender ?? user.sex
           );
 
         if (
@@ -209,7 +219,8 @@ module.exports = {
             gender === "FEMALE") ||
           (myGender === "FEMALE" &&
             gender === "MALE")
-        ) {                                                     matchCandidates.push({
+        ) {
+          matchCandidates.push({
             ...user,
             id: userID,
             gender
@@ -218,7 +229,8 @@ module.exports = {
       }
 
       if (!matchCandidates.length) {
-        return api.sendMessage(                                 "❌ No suitable match found.",
+        return api.sendMessage(
+          "❌ No suitable match found.",
           event.threadID
         );
       }
@@ -289,7 +301,8 @@ module.exports = {
               String(selectedMatchID)
             );
 
-          if (matchUserData) {                                    matchName =
+          if (matchUserData) {
+            matchName =
               matchUserData.name ||
               matchUserData.fullName ||
               matchUserData.displayName ||
@@ -315,12 +328,14 @@ module.exports = {
 
       const backgrounds = [
         {
-          id: 1,                                                url: "https://drive.google.com/uc?export=download&id=14tE4z8bZDv_Xco8V1WUgE4g0uZ-5CVYi",
+          id: 1,
+          url: "https://drive.google.com/uc?export=download&id=14tE4z8bZDv_Xco8V1WUgE4g0uZ-5CVYi",
           type: "normal",
           pos: [
             { x: 385, y: 40, w: 180, h: 180 },
             { x: 585, y: 180, w: 180, h: 180 }
-          ]                                                   },
+          ]
+        },
         {
           id: 2,
           url: "https://drive.google.com/uc?export=download&id=1fMiWIjFjJk9q89JPyAYU4LHHfoM_3N4w",
@@ -340,7 +355,8 @@ module.exports = {
           ]
         },
         {
-          id: 4,                                                url: "https://drive.google.com/uc?export=download&id=1v3ix13pgp9Lkbl7MaF968SNPTOlkf_Y_",
+          id: 4,
+          url: "https://drive.google.com/uc?export=download&id=1v3ix13pgp9Lkbl7MaF968SNPTOlkf_Y_",
           type: "circle",
           pos: [
             { x: 115, y: 185, size: 200 },
@@ -349,14 +365,17 @@ module.exports = {
         },
         {
           id: 5,
-          url: "https://drive.google.com/uc?export=download&id=19QEwghmb2jOmmqeFG-9ouAWYtQyHd0NF",                    type: "normal",
+          url: "https://drive.google.com/uc?export=download&id=19QEwghmb2jOmmqeFG-9ouAWYtQyHd0NF",
+          type: "normal",
           pos: [
             { x: 111, y: 175, w: 330, h: 330 },
-            { x: 1018, y: 173, w: 330, h: 330 }                 ]
+            { x: 1018, y: 173, w: 330, h: 330 }
+          ]
         },
         {
           id: 6,
-          url: "https://drive.google.com/uc?export=download&id=1O9iMotJXZxXHy8fdT-w7MG7es8-OE_VI",                    type: "circle",
+          url: "https://drive.google.com/uc?export=download&id=1O9iMotJXZxXHy8fdT-w7MG7es8-OE_VI",
+          type: "circle",
           pos: [
             { x: 380, y: 35, size: 180 },
             { x: 583, y: 185, size: 180 }
@@ -364,7 +383,8 @@ module.exports = {
         },
         {
           id: 7,
-          url: "https://drive.google.com/uc?export=download&id=1rAIJ0Z4pBCfd_1HrjRYEdKi22NvMzgvI",                    type: "normal",
+          url: "https://drive.google.com/uc?export=download&id=1rAIJ0Z4pBCfd_1HrjRYEdKi22NvMzgvI",
+          type: "normal",
           pos: [
             { x: 120, y: 170, w: 300, h: 300 },
             { x: null, y: 170, w: 300, h: 300 }
@@ -372,7 +392,8 @@ module.exports = {
         },
         {
           id: 8,
-          url: "https://drive.google.com/uc?export=download&id=1gOs0rosaWNZWq5OsoDaWoGE41hqn4DRd",                    type: "circle",
+          url: "https://drive.google.com/uc?export=download&id=1gOs0rosaWNZWq5OsoDaWoGE41hqn4DRd",
+          type: "circle",
           pos: [
             { x: 65, y: 104, size: 210 },
             { x: 460, y: 104, size: 210 }
@@ -380,7 +401,8 @@ module.exports = {
         },
         {
           id: 12,
-          url: "https://drive.google.com/uc?export=download&id=1_3FpXsHNhuVgP_i39a_AIqDuSNatS3VA",                    type: "circle",
+          url: "https://drive.google.com/uc?export=download&id=1_3FpXsHNhuVgP_i39a_AIqDuSNatS3VA",
+          type: "circle",
           pos: [
             { x: 93, y: 111, size: 190 },
             { x: 434, y: 107, size: 190 }
@@ -388,7 +410,8 @@ module.exports = {
         },
         {
           id: 13,
-          url: "https://drive.google.com/uc?export=download&id=1aWij6G1FgYDAVtdXALrocCA6xQzC5MMV",                    type: "circle",
+          url: "https://drive.google.com/uc?export=download&id=1aWij6G1FgYDAVtdXALrocCA6xQzC5MMV",
+          type: "circle",
           pos: [
             { x: 93, y: 111, size: 190 },
             { x: 434, y: 107, size: 190 }
@@ -396,7 +419,8 @@ module.exports = {
         },
         {
           id: 14,
-          url: "https://drive.google.com/uc?export=download&id=1pVnWlpZt0F1w0sTwgU3zJWiRkKHygikk",                    type: "circle",
+          url: "https://drive.google.com/uc?export=download&id=1pVnWlpZt0F1w0sTwgU3zJWiRkKHygikk",
+          type: "circle",
           pos: [
             { x: 93, y: 111, size: 190 },
             { x: 434, y: 107, size: 190 }
@@ -404,7 +428,8 @@ module.exports = {
         },
         {
           id: 15,
-          url: "https://drive.google.com/uc?export=download&id=15B3leUy_R5GBCXnue32rmzcZIhE834J5",                    type: "circle",
+          url: "https://drive.google.com/uc?export=download&id=15B3leUy_R5GBCXnue32rmzcZIhE834J5",
+          type: "circle",
           pos: [
             { x: 93, y: 111, size: 190 },
             { x: 435, y: 109, size: 190 }
@@ -412,14 +437,16 @@ module.exports = {
         },
         /* ================= NEW BACKGROUNDS 16-25 ================= */
 
-        {                                                       id: 16,
+        {
+          id: 16,
           url: "https://drive.google.com/uc?export=download&id=1ZChRQCsk2yuIegxM2jLNEeJw-H-GKH_B",
           type: "auto"
         },
         {
           id: 17,
           url: "https://drive.google.com/uc?export=download&id=1RPPLrxmvIxYZfq4uq8X9jAwgKBZ99_sJ",
-          type: "auto"                                        },
+          type: "auto"
+        },
         {
           id: 18,
           url: "https://drive.google.com/uc?export=download&id=1DszvUg3yAGaMowwgaDcmo4IRwvUg7ooz",
@@ -435,14 +462,16 @@ module.exports = {
           url: "https://drive.google.com/uc?export=download&id=14lfFgwJQVYhyPoOqXh3Qbe1wjpqEblol",
           type: "auto"
         },
-        {                                                       id: 21,
+        {
+          id: 21,
           url: "https://drive.google.com/uc?export=download&id=1hRNq0c76Ux3_YmuJey6pbgf4_mRD2ZVc",
           type: "auto"
         },
         {
           id: 22,
           url: "https://drive.google.com/uc?export=download&id=1FYNSWQJxQWuyUy62t7naOYiuaidquOIP",
-          type: "auto"                                        },
+          type: "auto"
+        },
         {
           id: 23,
           url: "https://drive.google.com/uc?export=download&id=1IigkLb4L65nv_pYgj9feaNNzQ90oKtiU",
@@ -452,7 +481,8 @@ module.exports = {
           id: 24,
           url: "https://drive.google.com/uc?export=download&id=1Nqsufx32pK1Os6uzH2YAXWv0HYoITxGy",
           type: "auto"
-        },                                                    {
+        },
+        {
           id: 25,
           url: "https://drive.google.com/uc?export=download&id=1Mp--OY1I1i183ORNDeDot8UB3JDYzRn-",
           type: "auto"
@@ -482,7 +512,7 @@ module.exports = {
 
         if (!selectedBg) {
           return api.sendMessage(
-            "❌ Invalid number! Use 1-15",
+            "❌ Invalid number! Use 1-25",
             event.threadID
           );
         }
@@ -527,7 +557,8 @@ module.exports = {
 
         ctx =
           canvas.getContext("2d");
-                                                              ctx.drawImage(
+
+        ctx.drawImage(
           baseImage,
           0,
           0,
@@ -566,7 +597,8 @@ module.exports = {
 
       const avatar2 =
         await loadImage(
-          avatar2URL                                          );
+          avatar2URL
+        );
 
       const lovePercent =
         Math.floor(
@@ -861,7 +893,8 @@ module.exports = {
           Math.PI * 2
         );
 
-        ctx.clip();                                   
+        ctx.clip();
+
         ctx.drawImage(
           img,
           cx - r,
@@ -1061,7 +1094,8 @@ module.exports = {
 
           ctx.stroke();
 
-          ctx.shadowBlur = 0;                         
+          ctx.shadowBlur = 0;
+
           drawDynamicUI(
             ctx,
             W,
@@ -1250,7 +1284,8 @@ module.exports = {
 
           ctx.setLineDash([]);
 
-          ctx.shadowBlur = 0;                         
+          ctx.shadowBlur = 0;
+
           drawDynamicUI(
             ctx,
             W,
@@ -1463,7 +1498,8 @@ module.exports = {
               "#ff4d6d",
               "#ff00cc"
             ]
-          );                                          
+          );
+
           drawDynamicUI(
             ctx,
             W,
@@ -1507,21 +1543,44 @@ module.exports = {
             avatarSize
           );
 
-        /* ================= NORMAL / CIRCLE ================= */
+          /* ================= USER NAMES ================= */                                              
+          ctx.save();
 
-        } else if (
-          selectedBg.type ===
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.font = `bold ${Math.max(22, Math.round(W * 0.035))}px Arial`;                                 
+          ctx.fillStyle = "#ffffff";
+          ctx.strokeStyle = "rgba(0, 0, 0, 0.9)";               ctx.lineWidth = 5;
+
+          ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+          ctx.shadowBlur = 8;
+                                                                const nameY = avatarY + avatarSize + 15;
+
+          const nameX1 = avatarX1 + avatarSize / 2;
+          const nameX2 = avatarX2 + avatarSize / 2;
+
+          ctx.strokeText(senderName, nameX1, nameY);
+          ctx.fillText(senderName, nameX1, nameY);    
+          ctx.strokeText(matchName, nameX2, nameY);
+          ctx.fillText(matchName, nameX2, nameY);
+                                                                ctx.restore();
+                                                              /* ================= NORMAL / CIRCLE ================= */
+
+        } else if (                                             selectedBg.type ===
           "circle"
         ) {
           drawCircle(
-            ctx,                                                  avatar1,
-            selectedBg.pos[0].x,                                  selectedBg.pos[0].y,
-            selectedBg.pos[0].size                              );
-
-          const x2 =
+            ctx,
+            avatar1,
+            selectedBg.pos[0].x,
+            selectedBg.pos[0].y,
+            selectedBg.pos[0].size
+          );
+                                                                const x2 =
             selectedBg.pos[1].x !== null
               ? selectedBg.pos[1].x
-              : canvas.width -                                        selectedBg.pos[1].size -
+              : canvas.width -
+                selectedBg.pos[1].size -
                 120;
 
           drawCircle(
@@ -1532,9 +1591,7 @@ module.exports = {
             selectedBg.pos[1].size
           );
         } else {
-          ctx.drawImage(
-            avatar1,
-            selectedBg.pos[0].x,
+          ctx.drawImage(                                          avatar1,                                              selectedBg.pos[0].x,
             selectedBg.pos[0].y,
             selectedBg.pos[0].w,
             selectedBg.pos[0].h
@@ -1558,7 +1615,8 @@ module.exports = {
       }
 
       /* ================================================= */
-      /* ================= OUTPUT FIX ==================== */                                                     /* ================================================= */
+      /* ================= OUTPUT FIX ==================== */
+      /* ================================================= */
 
       outputPath =
         path.join(
@@ -1634,7 +1692,8 @@ module.exports = {
                   outputPath
                 )
             },
-            event.threadID,                                       error => {
+            event.threadID,
+            error => {
               if (error) {
                 reject(error);
                 return;
@@ -1642,8 +1701,7 @@ module.exports = {
 
               resolve();
             }
-          );
-        }
+          );                                                  }
       );
 
       console.log(
@@ -1654,27 +1712,21 @@ module.exports = {
       console.error(
         "[PAIR ERROR]",
         err
-      );
-
+      );                                              
       try {
         await api.sendMessage(
           "❌ Error:\n" +
-            (err?.message ||
-              String(err)),
-          event.threadID
+            (err?.message ||                                        String(err)),
+          event.threadID                                      );
+      } catch (sendError) {                                   console.error(
+          "[PAIR] Failed to send error message:",               sendError.message
         );
-      } catch (sendError) {
-        console.error(
-          "[PAIR] Failed to send error message:",
-          sendError.message
-        );                                                  }
+      }
     } finally {
-      /*
-       * Always remove generated file.
+      /*                                                     * Always remove generated file.
        */
-      if (outputPath) {
-        try {                                                   await fs.promises.unlink(
-            outputPath
+      if (outputPath) {                                       try {
+          await fs.promises.unlink(                               outputPath
           );
 
           console.log(
@@ -1683,12 +1735,14 @@ module.exports = {
         } catch (cleanupError) {
           if (
             cleanupError.code !==
-            "ENOENT"                                            ) {
+            "ENOENT"
+          ) {
             console.log(
               "[PAIR] Cleanup error:",
-              cleanupError.message                                );
-          }                                                   }
-      }
-    }
+              cleanupError.message
+            );
+          }
+        }
+      }                                                   }
   }
 };
